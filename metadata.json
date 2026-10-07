@@ -1,0 +1,6 @@
+{
+  "name": "Home Fitness OS",
+  "description": "Personal, offline-first home workout operating system with deterministic training engine.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

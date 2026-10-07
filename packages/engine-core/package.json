@@ -1,0 +1,17 @@
+{
+  "name": "@hfos/engine-core",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@hfos/contracts": "*",
+    "@hfos/config": "*",
+    "@hfos/events": "*",
+    "@hfos/ports": "*",
+    "@hfos/library": "*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}
