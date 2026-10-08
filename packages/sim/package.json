@@ -5,9 +5,11 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "dependencies": {
+    "@hfos/config": "*",
     "@hfos/contracts": "*",
     "@hfos/engine-core": "*",
     "@hfos/events": "*",
+    "@hfos/library": "*",
     "@hfos/ports": "*"
   },
   "scripts": {

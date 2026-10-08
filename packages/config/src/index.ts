@@ -329,6 +329,464 @@ export const DEFAULT_SETTINGS: SettingDefinition[] = [
     version: '1.0.0',
     description: 'Default rest seconds for endurance emphasis (30-45)',
   },
+  // Part 1 Hardening & Session Settings
+  {
+    schema_version: 1,
+    key: 'rep_window_strength',
+    type: 'object',
+    default: { min: 4, max: 8, target: 6 },
+    scope: 'user',
+    consumer: 'session_generator',
+    version: '1.0.0',
+    description: 'Target rep window for strength emphasis',
+  },
+  {
+    schema_version: 1,
+    key: 'rep_window_hypertrophy',
+    type: 'object',
+    default: { min: 6, max: 15, target: 10 },
+    scope: 'user',
+    consumer: 'session_generator',
+    version: '1.0.0',
+    description: 'Target rep window for hypertrophy emphasis',
+  },
+  {
+    schema_version: 1,
+    key: 'rep_window_endurance',
+    type: 'object',
+    default: { min: 12, max: 25, target: 15 },
+    scope: 'user',
+    consumer: 'session_generator',
+    version: '1.0.0',
+    description: 'Target rep window for endurance emphasis',
+  },
+  {
+    schema_version: 1,
+    key: 'mobility_rest_seconds',
+    type: 'number',
+    default: 30,
+    bounds: { min: 15, max: 60 },
+    scope: 'user',
+    consumer: 'session_generator',
+    version: '1.0.0',
+    description: 'Rest duration after mobility sets in seconds',
+  },
+  {
+    schema_version: 1,
+    key: 'seconds_per_minute',
+    type: 'number',
+    default: 60,
+    bounds: { min: 60, max: 60 },
+    scope: 'safety_locked',
+    consumer: 'session_generator',
+    version: '1.0.0',
+    description: 'Seconds per minute constant',
+  },
+  {
+    schema_version: 1,
+    key: 'default_sets_per_exercise',
+    type: 'number',
+    default: 3,
+    bounds: { min: 1, max: 6 },
+    scope: 'user',
+    consumer: 'session_generator',
+    version: '1.0.0',
+    description: 'Default working set count per exercise in a session',
+  },
+  {
+    schema_version: 1,
+    key: 'default_mobility_sets',
+    type: 'number',
+    default: 2,
+    bounds: { min: 1, max: 4 },
+    scope: 'user',
+    consumer: 'session_generator',
+    version: '1.0.0',
+    description: 'Default set count for mobility additions',
+  },
+  {
+    schema_version: 1,
+    key: 'rpe_target_mobility',
+    type: 'number',
+    default: 6,
+    bounds: { min: 1, max: 10 },
+    scope: 'user',
+    consumer: 'session_generator',
+    version: '1.0.0',
+    description: 'Target RPE for mobility exercises',
+  },
+  {
+    schema_version: 1,
+    key: 'rpe_target_strength',
+    type: 'number',
+    default: 8.5,
+    bounds: { min: 6, max: 10 },
+    scope: 'user',
+    consumer: 'session_generator',
+    version: '1.0.0',
+    description: 'Target RPE for strength compound sets',
+  },
+  {
+    schema_version: 1,
+    key: 'rpe_target_default',
+    type: 'number',
+    default: 8,
+    bounds: { min: 6, max: 10 },
+    scope: 'user',
+    consumer: 'session_generator',
+    version: '1.0.0',
+    description: 'Default target RPE for hypertrophy/endurance sets',
+  },
+  // Batch 3 (M0-09 Progression Engine)
+  {
+    schema_version: 1,
+    key: 'finder_rep_min',
+    type: 'number',
+    default: 4,
+    bounds: { min: 1, max: 10 },
+    scope: 'user',
+    consumer: 'progression',
+    version: '1.0.0',
+    description: 'Minimum reps for valid finder technical-cap test',
+  },
+  {
+    schema_version: 1,
+    key: 'finder_rep_max',
+    type: 'number',
+    default: 8,
+    bounds: { min: 2, max: 20 },
+    scope: 'user',
+    consumer: 'progression',
+    version: '1.0.0',
+    description: 'Maximum reps for valid finder technical-cap test',
+  },
+  {
+    schema_version: 1,
+    key: 'review_min_sessions',
+    type: 'number',
+    default: 3,
+    bounds: { min: 1, max: 10 },
+    scope: 'user',
+    consumer: 'progression',
+    version: '1.0.0',
+    description: 'Minimum sessions before progression review is due',
+  },
+  {
+    schema_version: 1,
+    key: 'review_min_days',
+    type: 'number',
+    default: 6,
+    bounds: { min: 1, max: 30 },
+    scope: 'user',
+    consumer: 'progression',
+    version: '1.0.0',
+    description: 'Minimum days before progression review is due',
+  },
+  {
+    schema_version: 1,
+    key: 'review_max_days',
+    type: 'number',
+    default: 10,
+    bounds: { min: 6, max: 30 },
+    scope: 'user',
+    consumer: 'progression',
+    version: '1.0.0',
+    description: 'Maximum days before progression review is forced due',
+  },
+  {
+    schema_version: 1,
+    key: 'min_quality_threshold',
+    type: 'number',
+    default: 3,
+    bounds: { min: 1, max: 3 },
+    scope: 'user',
+    consumer: 'progression',
+    version: '1.0.0',
+    description: 'Minimum execution quality score required for progression',
+  },
+  {
+    schema_version: 1,
+    key: 'stagnation_threshold',
+    type: 'number',
+    default: 3,
+    bounds: { min: 2, max: 5 },
+    scope: 'user',
+    consumer: 'progression',
+    version: '1.0.0',
+    description: 'Number of consecutive non-progress reviews triggering stagnation diagnostic',
+  },
+  {
+    schema_version: 1,
+    key: 'min_exposure_progression',
+    type: 'number',
+    default: 2,
+    bounds: { min: 1, max: 5 },
+    scope: 'user',
+    consumer: 'progression',
+    version: '1.0.0',
+    description: 'Minimum exposure occurrences in trailing 14 days required to progress',
+  },
+  {
+    schema_version: 1,
+    key: 'deload_rpe',
+    type: 'number',
+    default: 9,
+    bounds: { min: 7, max: 10 },
+    scope: 'user',
+    consumer: 'progression',
+    version: '1.0.0',
+    description: 'Session RPE threshold triggering deload recommendation if sustained',
+  },
+  {
+    schema_version: 1,
+    key: 'lever_order',
+    type: 'array',
+    default: ['reps', 'tempo', 'rom', 'load', 'harder_variation', 'density', 'volume'],
+    scope: 'user',
+    consumer: 'progression',
+    version: '1.0.0',
+    description: 'Ordered sequence of progression levers to apply',
+  },
+  // Batch 3 (M0-10 Ranking & Stimulus Gap)
+  {
+    schema_version: 1,
+    key: 'target_stimulus_interval_days',
+    type: 'number',
+    default: 3,
+    bounds: { min: 1, max: 7 },
+    scope: 'user',
+    consumer: 'ranking',
+    version: '1.0.0',
+    description: 'Target days between stimulus exposures for a movement pattern',
+  },
+  // Batch 3 (M0-11 Muscle Exposure)
+  {
+    schema_version: 1,
+    key: 'exposure_window_days',
+    type: 'number',
+    default: 7,
+    bounds: { min: 3, max: 28 },
+    scope: 'user',
+    consumer: 'exposure',
+    version: '1.0.0',
+    description: 'Trailing window in days for muscle exposure calculations',
+  },
+  {
+    schema_version: 1,
+    key: 'min_trend_points',
+    type: 'number',
+    default: 6,
+    bounds: { min: 2, max: 20 },
+    scope: 'user',
+    consumer: 'exposure',
+    version: '1.0.0',
+    description: 'Minimum data points required to calculate an exposure trend',
+  },
+  {
+    schema_version: 1,
+    key: 'trend_flat_band',
+    type: 'number',
+    default: 0.1,
+    bounds: { min: 0.01, max: 0.5 },
+    scope: 'user',
+    consumer: 'exposure',
+    version: '1.0.0',
+    description: 'Percentage threshold defining flat band for exposure trend',
+  },
+  {
+    schema_version: 1,
+    key: 'secondary_muscle_fraction',
+    type: 'number',
+    default: 0.5,
+    bounds: { min: 0, max: 1 },
+    scope: 'user',
+    consumer: 'exposure',
+    version: '1.0.0',
+    description: 'Set fraction credited to secondary muscles',
+  },
+  {
+    schema_version: 1,
+    key: 'milliseconds_per_day',
+    type: 'number',
+    default: 86400000,
+    bounds: { min: 86400000, max: 86400000 },
+    scope: 'safety_locked',
+    consumer: 'time_math',
+    version: '1.0.0',
+    description: 'Milliseconds per standard day constant',
+  },
+  // Batch 3 (M0-12 Knowledge & Freshness)
+  {
+    schema_version: 1,
+    key: 'freshness_days_weight',
+    type: 'number',
+    default: 14,
+    bounds: { min: 1, max: 90 },
+    scope: 'user',
+    consumer: 'knowledge',
+    version: '1.0.0',
+    description: 'Days before bodyweight measurement is considered stale',
+  },
+  {
+    schema_version: 1,
+    key: 'freshness_days_waist',
+    type: 'number',
+    default: 14,
+    bounds: { min: 1, max: 90 },
+    scope: 'user',
+    consumer: 'knowledge',
+    version: '1.0.0',
+    description: 'Days before waist circumference measurement is considered stale',
+  },
+  {
+    schema_version: 1,
+    key: 'freshness_days_baseline_test',
+    type: 'number',
+    default: 56,
+    bounds: { min: 7, max: 180 },
+    scope: 'user',
+    consumer: 'knowledge',
+    version: '1.0.0',
+    description: 'Days before baseline physical test is considered stale',
+  },
+  {
+    schema_version: 1,
+    key: 'freshness_days_equipment',
+    type: 'number',
+    default: 90,
+    bounds: { min: 7, max: 365 },
+    scope: 'user',
+    consumer: 'knowledge',
+    version: '1.0.0',
+    description: 'Days before equipment availability declaration is considered stale',
+  },
+  {
+    schema_version: 1,
+    key: 'max_questions_per_day',
+    type: 'number',
+    default: 1,
+    bounds: { min: 1, max: 5 },
+    scope: 'user',
+    consumer: 'knowledge',
+    version: '1.0.0',
+    description: 'Maximum information needs questions presented to user per day',
+  },
+  // Batch 4 (M0-13 Horizon & Autonomy)
+  {
+    schema_version: 1,
+    key: 'main_sessions_min',
+    type: 'number',
+    default: 3,
+    bounds: { min: 1, max: 7 },
+    scope: 'user',
+    consumer: 'horizon',
+    version: '1.0.0',
+    description: 'Minimum main sessions per rolling 7 days',
+  },
+  {
+    schema_version: 1,
+    key: 'main_sessions_max',
+    type: 'number',
+    default: 5,
+    bounds: { min: 1, max: 7 },
+    scope: 'user',
+    consumer: 'horizon',
+    version: '1.0.0',
+    description: 'Maximum main sessions per rolling 7 days',
+  },
+  {
+    schema_version: 1,
+    key: 'max_consecutive_main_days',
+    type: 'number',
+    default: 2,
+    bounds: { min: 1, max: 7 },
+    scope: 'user',
+    consumer: 'horizon',
+    version: '1.0.0',
+    description: 'Maximum consecutive days with a main session',
+  },
+  {
+    schema_version: 1,
+    key: 'autonomy_change_today',
+    type: 'string',
+    default: 'ask',
+    scope: 'user',
+    consumer: 'autonomy',
+    version: '1.0.0',
+    description: 'Autonomy level for changes on current day (ask|notify|auto)',
+  },
+  {
+    schema_version: 1,
+    key: 'autonomy_change_tomorrow',
+    type: 'string',
+    default: 'ask',
+    scope: 'user',
+    consumer: 'autonomy',
+    version: '1.0.0',
+    description: 'Autonomy level for changes on tomorrow (ask|notify|auto)',
+  },
+  {
+    schema_version: 1,
+    key: 'autonomy_replan_future',
+    type: 'string',
+    default: 'auto',
+    scope: 'user',
+    consumer: 'autonomy',
+    version: '1.0.0',
+    description: 'Autonomy level for replanning adaptive future days (ask|notify|auto)',
+  },
+  {
+    schema_version: 1,
+    key: 'autonomy_due_progression',
+    type: 'string',
+    default: 'notify',
+    scope: 'user',
+    consumer: 'autonomy',
+    version: '1.0.0',
+    description: 'Autonomy level for due progression recommendations (ask|notify|auto)',
+  },
+  {
+    schema_version: 1,
+    key: 'autonomy_global_setting',
+    type: 'string',
+    default: 'ask',
+    scope: 'user',
+    consumer: 'autonomy',
+    version: '1.0.0',
+    description: 'Autonomy level for global configuration changes (ask|notify|auto)',
+  },
+  {
+    schema_version: 1,
+    key: 'autonomy_rest_default',
+    type: 'string',
+    default: 'ask',
+    scope: 'user',
+    consumer: 'autonomy',
+    version: '1.0.0',
+    description: 'Autonomy level for shifting to rest default (ask|notify|auto)',
+  },
+  {
+    schema_version: 1,
+    key: 'autonomy_muscle_target',
+    type: 'string',
+    default: 'ask',
+    scope: 'user',
+    consumer: 'autonomy',
+    version: '1.0.0',
+    description: 'Autonomy level for changing target muscle emphasis (ask|notify|auto)',
+  },
+  // Batch 4 (M0-14 AI Contract)
+  {
+    schema_version: 1,
+    key: 'ai_message_draft_max_length',
+    type: 'number',
+    default: 280,
+    bounds: { min: 50, max: 1000 },
+    scope: 'user',
+    consumer: 'ai_contract',
+    version: '1.0.0',
+    description: 'Maximum character length of AI message drafts',
+  },
 ];
 
 class SettingsRegistry {
@@ -480,9 +938,68 @@ export function validateSettingValue(
   return registry.validateSettingValue(key, value, scopeContext);
 }
 
+export type EffectiveConfig = Record<string, unknown>;
+
+export function requireNumber(config: EffectiveConfig, key: string): number {
+  if (!(key in config)) {
+    throw new Error(`Missing required configuration key: "${key}"`);
+  }
+  const val = config[key];
+  if (typeof val !== 'number' || !Number.isFinite(val)) {
+    throw new Error(
+      `Configuration key "${key}" must be a finite number, received: ${typeof val} (${String(val)})`
+    );
+  }
+  return val;
+}
+
+export interface RangeConfig {
+  min: number;
+  max: number;
+  target?: number;
+}
+
+export function requireRange(config: EffectiveConfig, key: string): RangeConfig {
+  if (!(key in config)) {
+    throw new Error(`Missing required configuration key: "${key}"`);
+  }
+  const val = config[key];
+  if (typeof val !== 'object' || val === null) {
+    throw new Error(
+      `Configuration key "${key}" must be an object with min and max, received: ${typeof val}`
+    );
+  }
+  const r = val as Record<string, unknown>;
+  if (typeof r.min !== 'number' || !Number.isFinite(r.min)) {
+    throw new Error(`Configuration key "${key}.min" must be a finite number`);
+  }
+  if (typeof r.max !== 'number' || !Number.isFinite(r.max)) {
+    throw new Error(`Configuration key "${key}.max" must be a finite number`);
+  }
+  const result: RangeConfig = {
+    min: r.min,
+    max: r.max,
+  };
+  if (typeof r.target === 'number' && Number.isFinite(r.target)) {
+    result.target = r.target;
+  }
+  return result;
+}
+
+export function requireArray<T = unknown>(config: EffectiveConfig, key: string): T[] {
+  if (!(key in config)) {
+    throw new Error(`Missing required configuration key: "${key}"`);
+  }
+  const val = config[key];
+  if (!Array.isArray(val)) {
+    throw new Error(`Configuration key "${key}" must be an array, received: ${typeof val}`);
+  }
+  return val as T[];
+}
+
 export function getEffectiveConfig(
   userOverrides: Record<string, unknown> = {}
-): Record<string, unknown> {
+): EffectiveConfig {
   return registry.getEffectiveConfig(userOverrides);
 }
 
@@ -500,4 +1017,13 @@ export function getAllSettingDefinitions(): SettingDefinition[] {
 
 export function resetRegistry(): void {
   registry.reset();
+}
+
+export function requiresApproval(
+  decisionClass: string,
+  config: EffectiveConfig = getEffectiveConfig()
+): boolean {
+  const settingKey = `autonomy_${decisionClass}`;
+  const level = (config[settingKey] as string | undefined) ?? 'ask';
+  return level === 'ask';
 }

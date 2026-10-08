@@ -330,3 +330,64 @@ export const SettingDefinitionSchema = z.object({
   description: z.string().optional(),
 });
 export type SettingDefinition = z.infer<typeof SettingDefinitionSchema>;
+
+// ==========================================
+// M0-14 AI Contract Schemas
+// ==========================================
+
+export const ALLOWED_AI_ACTIONS = [
+  'rank',
+  'explain',
+  'phrase_question',
+  'parse_note',
+] as const;
+
+export const FORBIDDEN_AI_ACTIONS = [
+  'create_exercise',
+  'modify_exercise',
+  'change_loads',
+  'change_rules',
+  'write_data',
+  'medical_advice',
+] as const;
+
+export const AiTaskEnum = z.enum([
+  'rank',
+  'explain',
+  'phrase_question',
+  'parse_note',
+]);
+export type AiTask = z.infer<typeof AiTaskEnum>;
+
+export const AiCandidateItemSchema = z.object({
+  id: z.string().min(1),
+  short_label: z.string().min(1),
+});
+export type AiCandidateItem = z.infer<typeof AiCandidateItemSchema>;
+
+export const AiRationaleCodeEnum = z.enum([
+  'stimulus_need',
+  'fatigue_management',
+  'schedule_fit',
+  'progression_step',
+  'exercise_variety',
+  'user_goal',
+]);
+export type AiRationaleCode = z.infer<typeof AiRationaleCodeEnum>;
+
+export const AiRequestSchema = z.object({
+  task: AiTaskEnum,
+  candidates: z.array(AiCandidateItemSchema),
+  context_summary: z.record(z.string(), z.unknown()),
+});
+export type AiRequest = z.infer<typeof AiRequestSchema>;
+
+export const AiResponseSchema = z.object({
+  selected_candidate_id: z.string().optional(),
+  ranking_ids: z.array(z.string()).default([]),
+  rationale_codes: z.array(AiRationaleCodeEnum).default([]),
+  message_draft: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+});
+export type AiResponse = z.infer<typeof AiResponseSchema>;
+

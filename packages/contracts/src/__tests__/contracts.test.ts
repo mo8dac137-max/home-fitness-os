@@ -25,6 +25,10 @@ import {
   InformationNeedSchema,
   DecisionRecordSchema,
   SettingDefinitionSchema,
+  ALLOWED_AI_ACTIONS,
+  FORBIDDEN_AI_ACTIONS,
+  AiRequestSchema,
+  AiResponseSchema,
 } from '../index.js';
 
 const VALID_UUID_V7 = '018f6c38-89c0-7b56-8a5b-9d48b1bfb91d';
@@ -330,6 +334,29 @@ describe('@hfos/contracts', () => {
       expect(SettingDefinitionSchema.parse(setFixture).key).toBe('execution_horizon_days');
       const { schema_version: _s, ...setNoVer } = setFixture;
       expect(() => SettingDefinitionSchema.parse(setNoVer)).toThrow();
+    });
+
+    it('validates AiRequest, AiResponse, and action sets (M0-14)', () => {
+      expect(ALLOWED_AI_ACTIONS).toContain('rank');
+      expect(FORBIDDEN_AI_ACTIONS).toContain('create_exercise');
+      expect(FORBIDDEN_AI_ACTIONS).toContain('write_data');
+
+      const req = {
+        task: 'rank' as const,
+        candidates: [{ id: 'cand_1', short_label: 'Candidate 1' }],
+        context_summary: { readiness: 0.8 },
+      };
+      const parsedReq = AiRequestSchema.parse(req);
+      expect(parsedReq.task).toBe('rank');
+
+      const res = {
+        selected_candidate_id: 'cand_1',
+        ranking_ids: ['cand_1'],
+        rationale_codes: ['stimulus_need' as const],
+        message_draft: 'Looks good.',
+      };
+      const parsedRes = AiResponseSchema.parse(res);
+      expect(parsedRes.selected_candidate_id).toBe('cand_1');
     });
   });
 });

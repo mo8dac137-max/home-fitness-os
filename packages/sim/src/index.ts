@@ -1,4 +1,5 @@
-import type { Clock, IdGenerator } from '@hfos/ports';
+import type { Clock, IdGenerator, AiProvider } from '@hfos/ports';
+import type { AiRequest, AiResponse } from '@hfos/contracts';
 
 export const PACKAGE_NAME = '@hfos/sim';
 
@@ -56,3 +57,33 @@ export class MockIdGenerator implements IdGenerator {
     return `018f6c38-89c0-7b56-8a5b-${hexCounter}`;
   }
 }
+
+/**
+ * Deterministic MockAiProvider for testing and offline simulation.
+ */
+export class MockAiProvider implements AiProvider {
+  constructor(
+    private preferredCandidateId?: string,
+    private shouldFail: boolean = false
+  ) {}
+
+  public async generate(request: AiRequest): Promise<AiResponse> {
+    if (this.shouldFail) {
+      throw new Error('MockAiProvider intentional error');
+    }
+
+    const selectedId =
+      this.preferredCandidateId && request.candidates.some((c) => c.id === this.preferredCandidateId)
+        ? this.preferredCandidateId
+        : request.candidates[0]?.id;
+
+    return {
+      selected_candidate_id: selectedId,
+      ranking_ids: request.candidates.map((c) => c.id),
+      rationale_codes: ['stimulus_need', 'schedule_fit'],
+      message_draft: `Selected candidate ${selectedId} based on training schedule and stimulus recovery.`,
+      tags: ['mock', 'deterministic'],
+    };
+  }
+}
+

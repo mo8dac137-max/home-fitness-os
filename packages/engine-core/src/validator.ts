@@ -5,6 +5,8 @@ import type {
   MuscleGroup,
   ValidationStatus,
 } from '@hfos/contracts';
+import type { EffectiveConfig } from '@hfos/config';
+import { requireNumber, getEffectiveConfig } from '@hfos/config';
 import type { EnvironmentItem } from './environment.js';
 import { isEligible } from './environment.js';
 
@@ -25,7 +27,7 @@ export interface ValidationContext {
   plan: Plan;
   library: Exercise[];
   environment: Record<string, EnvironmentItem>;
-  settings?: Record<string, unknown>;
+  settings?: EffectiveConfig;
   user_pain_flags?: string[];
   physique_priorities?: [MuscleGroup, MuscleGroup];
 }
@@ -80,14 +82,16 @@ export function validateChange(
   context: ValidationContext
 ): ChangeValidationResult {
   const issues: ValidationIssue[] = [];
-  const settings = context.settings ?? {};
+  const settings = context.settings ?? getEffectiveConfig();
 
-  const minMainSessionMinutes = (settings['min_main_session_minutes'] as number) ?? 30;
-  const maxSessionMinutes = (settings['max_session_minutes'] as number) ?? 60;
-  const sessionHardSetsCap = (settings['session_hard_sets_cap'] as number) ?? 24;
-  const weeklySetsCapPerMuscle = (settings['weekly_sets_cap_per_muscle'] as number) ?? 16;
-  const minHoursBetweenHardSamePattern =
-    (settings['min_hours_between_hard_same_pattern'] as number) ?? 36;
+  const minMainSessionMinutes = requireNumber(settings, 'min_main_session_minutes');
+  const maxSessionMinutes = requireNumber(settings, 'max_session_minutes');
+  const sessionHardSetsCap = requireNumber(settings, 'session_hard_sets_cap');
+  const weeklySetsCapPerMuscle = requireNumber(settings, 'weekly_sets_cap_per_muscle');
+  const minHoursBetweenHardSamePattern = requireNumber(
+    settings,
+    'min_hours_between_hard_same_pattern'
+  );
 
   // 1. Stage: Schema & Horizon constraints
   if (
@@ -98,6 +102,19 @@ export function validateChange(
       stage: 'schema',
       severity: 'error',
       message: `target_day_index ${request.target_day_index} is out of plan horizon bounds [0, ${context.plan.horizon_days - 1}].`,
+    });
+  }
+
+  // PlanStore rule: a manual change on a day with index >= 2 is rejected with reason use_quick_command
+  if (
+    request.source === 'manual' &&
+    request.target_day_index !== undefined &&
+    request.target_day_index >= 2
+  ) {
+    issues.push({
+      stage: 'schema',
+      severity: 'error',
+      message: 'use_quick_command',
     });
   }
 
@@ -114,7 +131,11 @@ export function validateChange(
     }
   }
 
-  const replacementId = request.parameters?.replacement_exercise_id as string | undefined;
+  const replacementId =
+    typeof request.parameters?.replacement_exercise_id === 'string'
+      ? request.parameters.replacement_exercise_id
+      : undefined;
+
   if (replacementId) {
     const repExercise = context.library.find((e) => e.id === replacementId);
     if (!repExercise) {
@@ -154,7 +175,7 @@ export function validateChange(
   }
 
   // 4. Stage: Recovery / Spacing
-  // Check hours between hard sessions of same pattern
+  // Check hours between hard sessions of same pattern (without literal 24)
   if (request.command === 'make_harder' && request.target_day_index !== undefined) {
     const dayIdx = request.target_day_index;
     const prevDay = context.plan.days[dayIdx - 1];
@@ -167,7 +188,7 @@ export function validateChange(
           const ex = context.library.find((e) => e.id === item.exercise_id);
           return ex && ex.pattern === targetExercise?.pattern;
         });
-        if (hasSamePattern && minHoursBetweenHardSamePattern > 24) {
+        if (hasSamePattern && minHoursBetweenHardSamePattern > 0) {
           issues.push({
             stage: 'recovery_spacing',
             severity: 'error',
@@ -181,7 +202,9 @@ export function validateChange(
   }
 
   // 5. Stage: Volume Caps
-  const extraSets = (request.parameters?.extra_sets as number) ?? 0;
+  const extraSets =
+    typeof request.parameters?.extra_sets === 'number' ? request.parameters.extra_sets : 0;
+
   if (extraSets > 0 && request.target_day_index !== undefined) {
     const day = context.plan.days[request.target_day_index];
     if (day?.session_snapshot) {
@@ -223,7 +246,11 @@ export function validateChange(
   }
 
   // 6. Stage: Duration (Main session < 30min is always rejected)
-  const proposedDurationMinutes = request.parameters?.duration_minutes as number | undefined;
+  const proposedDurationMinutes =
+    typeof request.parameters?.duration_minutes === 'number'
+      ? request.parameters.duration_minutes
+      : undefined;
+
   if (proposedDurationMinutes !== undefined) {
     const isMainSession =
       request.target_day_index !== undefined
@@ -339,8 +366,9 @@ export class PlanStore {
       if (day && day.session_snapshot) {
         if (request.command === 'replace_exercise' && request.target_exercise_id) {
           const replacementId =
-            (request.parameters?.replacement_exercise_id as string) ??
-            validation.nearest_alternative?.id;
+            (typeof request.parameters?.replacement_exercise_id === 'string'
+              ? request.parameters.replacement_exercise_id
+              : undefined) ?? validation.nearest_alternative?.id;
           if (replacementId) {
             day.session_snapshot.exercises = day.session_snapshot.exercises.map((item) => {
               if (item.exercise_id === request.target_exercise_id) {

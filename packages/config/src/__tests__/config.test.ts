@@ -7,6 +7,9 @@ import {
   getEffectiveConfig,
   validateRankWeights,
   resetRegistry,
+  requireNumber,
+  requireRange,
+  requireArray,
 } from '../index.js';
 import type { SettingDefinition } from '@hfos/contracts';
 
@@ -135,5 +138,59 @@ describe('@hfos/config', () => {
     expect(effective['transition_seconds']).toBe(25);
     // Unaltered stays at default
     expect(effective['day_start_hour']).toBe(4);
+  });
+
+  describe('Typed accessors requireNumber and requireRange', () => {
+    it('successfully extracts valid numbers and ranges', () => {
+      const config = getEffectiveConfig();
+      expect(requireNumber(config, 'execution_horizon_days')).toBe(7);
+      expect(requireNumber(config, 'min_main_session_minutes')).toBe(30);
+
+      const strengthWindow = requireRange(config, 'rep_window_strength');
+      expect(strengthWindow.min).toBe(4);
+      expect(strengthWindow.max).toBe(8);
+      expect(strengthWindow.target).toBe(6);
+
+      const items = requireArray(config, 'items_requiring_validation');
+      expect(items).toContain('table');
+    });
+
+    it('throws if required key is missing', () => {
+      const config = getEffectiveConfig();
+      expect(() => requireNumber(config, 'non_existent_key')).toThrow(/Missing required configuration key/);
+      expect(() => requireRange(config, 'non_existent_key')).toThrow(/Missing required configuration key/);
+      expect(() => requireArray(config, 'non_existent_key')).toThrow(/Missing required configuration key/);
+    });
+
+    it('throws if key is not a valid number or range', () => {
+      const badConfig = {
+        string_val: 'not_a_number',
+        bad_range: { min: 'four', max: 8 },
+        nan_val: NaN,
+        not_an_array: 42,
+      };
+      expect(() => requireNumber(badConfig, 'string_val')).toThrow(/must be a finite number/);
+      expect(() => requireNumber(badConfig, 'nan_val')).toThrow(/must be a finite number/);
+      expect(() => requireRange(badConfig, 'string_val')).toThrow(/must be an object with min and max/);
+      expect(() => requireRange(badConfig, 'bad_range')).toThrow(/must be a finite number/);
+      expect(() => requireArray(badConfig, 'not_an_array')).toThrow(/must be an array/);
+    });
+  });
+
+  describe('Batch 4 Autonomy and Horizon settings', () => {
+    it('seeds autonomy and horizon defaults correctly', () => {
+      const config = getEffectiveConfig();
+      expect(config['main_sessions_min']).toBe(3);
+      expect(config['main_sessions_max']).toBe(5);
+      expect(config['max_consecutive_main_days']).toBe(2);
+      expect(config['autonomy_change_today']).toBe('ask');
+      expect(config['autonomy_change_tomorrow']).toBe('ask');
+      expect(config['autonomy_replan_future']).toBe('auto');
+      expect(config['autonomy_due_progression']).toBe('notify');
+      expect(config['autonomy_global_setting']).toBe('ask');
+      expect(config['autonomy_rest_default']).toBe('ask');
+      expect(config['autonomy_muscle_target']).toBe('ask');
+      expect(config['ai_message_draft_max_length']).toBe(280);
+    });
   });
 });

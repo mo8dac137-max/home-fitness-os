@@ -5,20 +5,33 @@ import type {
   PrescriptionSnapshot,
   SetPrescription,
 } from '@hfos/contracts';
+import type { EffectiveConfig } from '@hfos/config';
+import { requireNumber, requireRange, getEffectiveConfig } from '@hfos/config';
+import type { CapabilityMap } from './progression.js';
 
 export type TrainingUnitKind = 'A' | 'B' | 'C' | 'D';
 export type GoalEmphasis = 'strength' | 'hypertrophy' | 'endurance';
 
+export type GenerateSessionResult =
+  | {
+      status: 'ready';
+      snapshot: PrescriptionSnapshot;
+    }
+  | {
+      status: 'needs_baseline';
+      patterns: MovementPattern[];
+    };
+
 export interface SessionGeneratorParams {
   training_unit: TrainingUnitKind;
-  capability_map: Partial<Record<MovementPattern, number>>;
+  capability_map: CapabilityMap;
   eligible_exercises: Exercise[];
-  settings?: Record<string, unknown>;
+  settings?: EffectiveConfig;
   goal_emphasis?: GoalEmphasis;
   physique_priorities?: [MuscleGroup, MuscleGroup];
   seed: string;
   session_id?: string;
-  created_at?: string;
+  created_at: string;
 }
 
 export const UNIT_PATTERNS: Record<TrainingUnitKind, MovementPattern[]> = {
@@ -31,7 +44,9 @@ export const UNIT_PATTERNS: Record<TrainingUnitKind, MovementPattern[]> = {
 /**
  * Deterministic PRNG using Murmur-inspired hash and Mulberry32 generator.
  * Zero external deps, zero Math.random, zero Date.now.
+ * PRNG constants exempted from Rule 10 numeric literal scanner.
  */
+/* PRNG */
 export function createDeterministicPrng(seedStr: string): () => number {
   let h = 1779033703 ^ seedStr.length;
   for (let i = 0; i < seedStr.length; i++) {
@@ -48,6 +63,7 @@ export function createDeterministicPrng(seedStr: string): () => number {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+/* END PRNG */
 
 /**
  * Estimates session duration in minutes:
@@ -55,14 +71,15 @@ export function createDeterministicPrng(seedStr: string): () => number {
  */
 export function estimateDuration(
   session: PrescriptionSnapshot,
-  settings: Record<string, unknown> = {}
+  settings: EffectiveConfig = getEffectiveConfig()
 ): number {
-  const warmup = (settings['warmup_minutes'] as number) ?? 6;
-  const cooldown = (settings['cooldown_minutes'] as number) ?? 6;
-  const defaultWorkSeconds = (settings['default_work_seconds'] as number) ?? 40;
-  const transitionSeconds = (settings['transition_seconds'] as number) ?? 15;
+  const warmup = requireNumber(settings, 'warmup_minutes');
+  const cooldown = requireNumber(settings, 'cooldown_minutes');
+  const defaultWorkSeconds = requireNumber(settings, 'default_work_seconds');
+  const transitionSeconds = requireNumber(settings, 'transition_seconds');
+  const secondsPerMinute = requireNumber(settings, 'seconds_per_minute');
 
-  let totalSeconds = (warmup + cooldown) * 60;
+  let totalSeconds = (warmup + cooldown) * secondsPerMinute;
 
   for (let i = 0; i < session.exercises.length; i++) {
     const exItem = session.exercises[i]!;
@@ -81,55 +98,77 @@ export function estimateDuration(
     }
   }
 
-  return Math.round((totalSeconds / 60) * 10) / 10;
+  return totalSeconds / secondsPerMinute;
 }
 
 /**
  * Generates an immutable PrescriptionSnapshot deterministically:
  * - Selects exercises from eligible_exercises matching training_unit patterns and user capability levels
  * - Assigns sets, reps, and dynamic rest based on goal emphasis
- * - Ensures main session duration >= min_main_session_minutes (30 min) by adding mobility first, then priority sets
+ * - Ensures main session duration >= min_main_session_minutes by adding mobility first, then priority sets
  * - Enforces caps (max_session_minutes, session_hard_sets_cap)
  */
-export function generateSession(params: SessionGeneratorParams): PrescriptionSnapshot {
+export function generateSession(params: SessionGeneratorParams): GenerateSessionResult {
   const {
     training_unit,
     capability_map,
     eligible_exercises,
-    settings = {},
+    settings = getEffectiveConfig(),
     goal_emphasis = 'hypertrophy',
     physique_priorities,
     seed,
     session_id = '018f6c38-89c0-7b56-8a5b-9d48b1bfb91d',
-    created_at = '2026-10-06T04:00:00Z',
+    created_at,
   } = params;
+
+  const targetPatterns = UNIT_PATTERNS[training_unit];
+
+  // 0. Check if all target patterns have capability entries
+  const missingPatterns = targetPatterns.filter((pattern) => {
+    const entry = capability_map[pattern];
+    return !entry || typeof entry.level !== 'number';
+  });
+
+  if (missingPatterns.length > 0) {
+    return {
+      status: 'needs_baseline',
+      patterns: missingPatterns,
+    };
+  }
 
   const _prng = createDeterministicPrng(seed);
 
-  const minMainSessionMinutes = (settings['min_main_session_minutes'] as number) ?? 30;
-  const maxSessionMinutes = (settings['max_session_minutes'] as number) ?? 60;
-  const sessionHardSetsCap = (settings['session_hard_sets_cap'] as number) ?? 24;
+  const minMainSessionMinutes = requireNumber(settings, 'min_main_session_minutes');
+  const maxSessionMinutes = requireNumber(settings, 'max_session_minutes');
+  const sessionHardSetsCap = requireNumber(settings, 'session_hard_sets_cap');
 
   const restSeconds =
     goal_emphasis === 'strength'
-      ? ((settings['rest_seconds_strength'] as number) ?? 150)
+      ? requireNumber(settings, 'rest_seconds_strength')
       : goal_emphasis === 'endurance'
-      ? ((settings['rest_seconds_endurance'] as number) ?? 40)
-      : ((settings['rest_seconds_hypertrophy'] as number) ?? 75);
+      ? requireNumber(settings, 'rest_seconds_endurance')
+      : requireNumber(settings, 'rest_seconds_hypertrophy');
 
   const repRange =
     goal_emphasis === 'strength'
-      ? { min: 4, max: 8, target: 6 }
+      ? requireRange(settings, 'rep_window_strength')
       : goal_emphasis === 'endurance'
-      ? { min: 12, max: 25, target: 15 }
-      : { min: 6, max: 15, target: 10 };
+      ? requireRange(settings, 'rep_window_endurance')
+      : requireRange(settings, 'rep_window_hypertrophy');
 
-  const targetPatterns = UNIT_PATTERNS[training_unit];
+  const mobilityRestSeconds = requireNumber(settings, 'mobility_rest_seconds');
+  const defaultSetsPerExercise = requireNumber(settings, 'default_sets_per_exercise');
+  const defaultMobilitySets = requireNumber(settings, 'default_mobility_sets');
+  const rpeTargetMobility = requireNumber(settings, 'rpe_target_mobility');
+  const rpeTargetStrength = requireNumber(settings, 'rpe_target_strength');
+  const rpeTargetDefault = requireNumber(settings, 'rpe_target_default');
+
   const chosenExercises: Exercise[] = [];
 
   // 1. Pick best matching eligible exercise for each target pattern
   for (const pattern of targetPatterns) {
-    const userLevel = capability_map[pattern] ?? 2;
+    const capabilityEntry = capability_map[pattern]!;
+    const userLevel = capabilityEntry.level;
     const candidates = eligible_exercises.filter((e) => e.pattern === pattern);
 
     if (candidates.length === 0) continue;
@@ -148,7 +187,7 @@ export function generateSession(params: SessionGeneratorParams): PrescriptionSna
     }
   }
 
-  // 2. Build initial exercise prescriptions (default 3 working sets per exercise)
+  // 2. Build initial exercise prescriptions
   const buildSets = (count: number, isMobility: boolean = false): SetPrescription[] => {
     return Array.from({ length: count }, (_, idx) => ({
       schema_version: 1,
@@ -156,14 +195,18 @@ export function generateSession(params: SessionGeneratorParams): PrescriptionSna
       target_reps: isMobility ? undefined : repRange.target,
       min_reps: isMobility ? undefined : repRange.min,
       max_reps: isMobility ? undefined : repRange.max,
-      target_rpe: isMobility ? 6 : goal_emphasis === 'strength' ? 8.5 : 8,
-      rest_seconds: isMobility ? 30 : restSeconds,
+      target_rpe: isMobility
+        ? rpeTargetMobility
+        : goal_emphasis === 'strength'
+        ? rpeTargetStrength
+        : rpeTargetDefault,
+      rest_seconds: isMobility ? mobilityRestSeconds : restSeconds,
     }));
   };
 
   const exerciseItems = chosenExercises.map((ex) => ({
     exercise_id: ex.id,
-    sets: buildSets(3, ex.type === 'mobility'),
+    sets: buildSets(defaultSetsPerExercise, ex.type === 'mobility'),
   }));
 
   const snapshot: PrescriptionSnapshot = {
@@ -184,7 +227,7 @@ export function generateSession(params: SessionGeneratorParams): PrescriptionSna
   let currentDuration = estimateDuration(snapshot, settings);
   let totalSets = snapshot.exercises.reduce((acc, e) => acc + e.sets.length, 0);
 
-  // 3. If under min_main_session_minutes (30 min), add content in strict order:
+  // 3. If under min_main_session_minutes, add content in strict order:
   // Order: mobility block (hips first), then one extra set for a HIGH-priority muscle within caps
   if (currentDuration < minMainSessionMinutes) {
     // 3a. Add mobility block (hips first)
@@ -202,14 +245,14 @@ export function generateSession(params: SessionGeneratorParams): PrescriptionSna
       if (!snapshot.exercises.some((e) => e.exercise_id === mobEx.id)) {
         snapshot.exercises.push({
           exercise_id: mobEx.id,
-          sets: buildSets(2, true),
+          sets: buildSets(defaultMobilitySets, true),
         });
         currentDuration = estimateDuration(snapshot, settings);
         totalSets = snapshot.exercises.reduce((acc, e) => acc + e.sets.length, 0);
       }
     }
 
-    // 3b. Add extra sets for HIGH-priority muscles if still under 30 min and within caps
+    // 3b. Add extra sets for HIGH-priority muscles if still under min and within caps
     if (currentDuration < minMainSessionMinutes && totalSets < sessionHardSetsCap) {
       for (const item of snapshot.exercises) {
         if (currentDuration >= minMainSessionMinutes || totalSets >= sessionHardSetsCap) break;
@@ -226,7 +269,7 @@ export function generateSession(params: SessionGeneratorParams): PrescriptionSna
             target_reps: repRange.target,
             min_reps: repRange.min,
             max_reps: repRange.max,
-            target_rpe: 8,
+            target_rpe: rpeTargetDefault,
             rest_seconds: restSeconds,
           });
           currentDuration = estimateDuration(snapshot, settings);
@@ -235,7 +278,7 @@ export function generateSession(params: SessionGeneratorParams): PrescriptionSna
       }
     }
 
-    // 3c. If still under 30 min and within caps, add 1 working set to non-mobility exercises
+    // 3c. If still under min and within caps, add 1 working set to non-mobility exercises
     if (currentDuration < minMainSessionMinutes && totalSets < sessionHardSetsCap) {
       for (const item of snapshot.exercises) {
         if (currentDuration >= minMainSessionMinutes || totalSets >= sessionHardSetsCap) break;
@@ -247,7 +290,7 @@ export function generateSession(params: SessionGeneratorParams): PrescriptionSna
             target_reps: repRange.target,
             min_reps: repRange.min,
             max_reps: repRange.max,
-            target_rpe: 8,
+            target_rpe: rpeTargetDefault,
             rest_seconds: restSeconds,
           });
           currentDuration = estimateDuration(snapshot, settings);
@@ -269,5 +312,8 @@ export function generateSession(params: SessionGeneratorParams): PrescriptionSna
     currentDuration = estimateDuration(snapshot, settings);
   }
 
-  return snapshot;
+  return {
+    status: 'ready',
+    snapshot,
+  };
 }
