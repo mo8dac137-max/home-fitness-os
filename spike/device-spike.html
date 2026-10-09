@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>M0-15 device spike</title>
+<style>
+body{background:#0b0b0b;color:#ddd;font:14px/1.5 system-ui,sans-serif;margin:0;padding:16px;max-width:760px}
+input,button{font:inherit;padding:8px;margin:3px 0;border-radius:6px;border:1px solid #333;background:#161616;color:#eee;width:100%;box-sizing:border-box}
+button{background:#1f2a1f;cursor:pointer}button.d{background:#2a1f1f}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+pre{background:#111;border:1px solid #222;padding:10px;white-space:pre-wrap;word-break:break-word;min-height:220px}
+h3{margin:14px 0 4px;color:#9fd}
+</style></head><body>
+<h2>M0-15 device spike (throwaway)</h2>
+<input id="url" value="https://tbyqtmgxomznpemkkaee.supabase.co">
+<input id="key" placeholder="Publishable (or anon) key - NEVER the secret / service_role key">
+<input id="email" placeholder="email">
+<input id="pw" type="password" placeholder="password">
+<h3>Session</h3>
+<button id="signin">0. Sign in</button>
+<h3>Device</h3>
+<div class="row">
+<button id="enroll">1. Enroll this device</button>
+<button id="verify">2. Verify device</button>
+</div>
+<div class="row">
+<button id="status">Status</button>
+<button id="recover">Recover (code)</button>
+</div>
+<h3>Data (RLS)</h3>
+<div class="row">
+<button id="write">3. Write row</button>
+<button id="read">4. Read rows</button>
+</div>
+<h3>Danger</h3>
+<div class="row">
+<button class="d" id="revoke">Revoke this device</button>
+<button class="d" id="forget">Forget local key</button>
+</div>
+<button class="d" id="signout">Sign out</button>
+<h3>Log</h3>
+<pre id="log"></pre>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+const $ = (id) => document.getElementById(id);
+const out = $('log');
+const log = (...a) => {
+  const t = a.map((x) => (typeof x === 'string' ? x : JSON.stringify(x, null, 2))).join(' ');
+  out.textContent = t + '\n\n' + out.textContent;
+};
+let sb = null, session = null;
+const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)))
+  .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+const idb = () => new Promise((res, rej) => {
+  const r = indexedDB.open('hfos-spike', 1);
+  r.onupgradeneeded = () => r.result.createObjectStore('keys');
+  r.onsuccess = () => res(r.result);
+  r.onerror = () => rej(r.error);
+});
+const store = async (mode) => (await idb()).transaction('keys', mode).objectStore('keys');
+const kget = async () => new Promise(async (res, rej) => {
+  const q = (await store('readonly')).get('device');
+  q.onsuccess = () => res(q.result || null); q.onerror = () => rej(q.error);
+});
+const kput = async (v) => new Promise(async (res, rej) => {
+  const q = (await store('readwrite')).put(v, 'device');
+  q.onsuccess = () => res(); q.onerror = () => rej(q.error);
+});
+const kdel = async () => new Promise(async (res, rej) => {
+  const q = (await store('readwrite')).delete('device');
+  q.onsuccess = () => res(); q.onerror = () => rej(q.error);
+});
+
+async function fn(action, extra = {}) {
+  if (!session) throw new Error('sign in first');
+  const r = await fetch($('url').value.replace(/\/$/, '') + '/functions/v1/device-auth', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + session.access_token,
+      apikey: $('key').value,
+    },
+    body: JSON.stringify({ action, ...extra }),
+  });
+  const j = await r.json().catch(() => ({}));
+  return { http: r.status, ...j };
+}
+async function newKey() {
+  const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify']);
+  const jwk = await crypto.subtle.exportKey('jwk', kp.publicKey);
+  return { kp, jwk };
+}
+const on = (id, f) => $(id).addEventListener('click', async () => {
+  try { await f(); } catch (e) { log('ERROR', String(e)); }
+});
+
+on('signin', async () => {
+  sb = createClient($('url').value, $('key').value, { auth: { persistSession: false, autoRefreshToken: true } });
+  const { data, error } = await sb.auth.signInWithPassword({ email: $('email').value, password: $('pw').value });
+  if (error) return log('signin FAILED', error.message);
+  session = data.session;
+  sb.auth.onAuthStateChange((_e, s) => { session = s; });
+  log('signed in as', data.user.email);
+});
+on('enroll', async () => {
+  const { kp, jwk } = await newKey();
+  const res = await fn('enroll', { public_key_jwk: jwk, label: navigator.userAgent.slice(0, 40) });
+  if (res.device_id) {
+    await kput({ device_id: res.device_id, privateKey: kp.privateKey });
+    log('ENROLLED. SAVE THESE RECOVERY CODES NOW (shown once):', res);
+  } else log('enroll', res);
+});
+on('verify', async () => {
+  const k = await kget();
+  if (!k) return log('NO LOCAL DEVICE KEY on this browser -> cannot verify');
+  const ch = await fn('challenge', { device_id: k.device_id });
+  if (!ch.nonce) return log('challenge failed', ch);
+  const sig = b64u(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, k.privateKey, new TextEncoder().encode(ch.nonce)));
+  log('verify', await fn('verify', { device_id: k.device_id, challenge_id: ch.challenge_id, signature: sig }));
+});
+on('status', async () => log('status', await fn('status')));
+on('recover', async () => {
+  const code = prompt('Recovery code (xxxx-xxxx-xxxx)');
+  if (!code) return;
+  const { kp, jwk } = await newKey();
+  const res = await fn('recover', { recovery_code: code, public_key_jwk: jwk, label: navigator.userAgent.slice(0, 40) });
+  if (res.device_id) {
+    await kput({ device_id: res.device_id, privateKey: kp.privateKey });
+    log('RECOVERED. NEW RECOVERY CODES (save now):', res);
+  } else log('recover', res);
+});
+on('write', async () => {
+  const { data, error } = await sb.from('spike_data').insert({ note: 'hello ' + new Date().toISOString() }).select();
+  log('write', error ? 'DENIED: ' + error.message : { ok: true, rows: data.length });
+});
+on('read', async () => {
+  const { data, error } = await sb.from('spike_data').select('*').order('created_at', { ascending: false }).limit(5);
+  log('read', error ? 'DENIED: ' + error.message : { rows_visible: data.length });
+});
+on('revoke', async () => {
+  const k = await kget();
+  if (!k) return log('no local key');
+  log('revoke', await fn('revoke', { device_id: k.device_id }));
+});
+on('forget', async () => { await kdel(); log('local device key deleted (simulates a lost device)'); });
+on('signout', async () => { await sb?.auth.signOut(); session = null; log('signed out'); });
+log('secure context:', isSecureContext, '| crypto.subtle:', !!crypto.subtle, '| indexedDB:', !!window.indexedDB);
+</script>
+</body></html>
