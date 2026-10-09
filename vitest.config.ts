@@ -5,10 +5,16 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['packages/**/__tests__/**/*.test.ts', 'packages/**/*.test.ts'],
+    include: [
+      'packages/**/__tests__/**/*.test.ts',
+      'packages/**/*.test.ts',
+      'apps/**/__tests__/**/*.test.ts',
+      'apps/**/*.test.ts',
+    ],
   },
   resolve: {
     alias: {
+      '@': path.resolve(__dirname, 'apps/web/src'),
       '@hfos/contracts': path.resolve(__dirname, 'packages/contracts/src'),
       '@hfos/config': path.resolve(__dirname, 'packages/config/src'),
       '@hfos/events': path.resolve(__dirname, 'packages/events/src'),

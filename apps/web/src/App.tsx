@@ -1,30 +1,111 @@
-import React, { useMemo } from 'react';
-import { getEffectiveConfig } from '@hfos/config';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  type Language,
+  getLanguage,
+  setLanguage,
+  subscribeLanguage,
+} from './i18n/index.js';
+import { KeyValueStore, requestStoragePersistence } from './storage/index.js';
+import {
+  bootstrapMockUser,
+  KV_KEY_LANGUAGE,
+} from './bootstrap.js';
+import type { MockUserProfile } from '@hfos/sim';
+
+import { BottomNav, type TabKey } from './components/BottomNav.js';
+import { LogoIntro } from './components/LogoIntro.js';
+import { HomeScreen } from './screens/HomeScreen.js';
+import { TrainScreen } from './screens/TrainScreen.js';
+import { ProgressScreen } from './screens/ProgressScreen.js';
+import { MoreScreen } from './screens/MoreScreen.js';
 
 export default function App() {
-  const isEngineReady = useMemo(() => {
-    try {
-      const config = getEffectiveConfig();
-      return Boolean(config && typeof config === 'object');
-    } catch {
-      return false;
+  const [lang, setLang] = useState<Language>(getLanguage());
+  const [activeTab, setActiveTab] = useState<TabKey>('home');
+  const [mockProfile, setMockProfile] = useState<MockUserProfile | null>(null);
+
+  // Intro splash states:
+  // - showIntro: boolean
+  // - isFirstEver: boolean
+  const [showIntro, setShowIntro] = useState<boolean>(true);
+  const [isFirstEver, setIsFirstEver] = useState<boolean>(false);
+  const [isHydrated, setIsHydrated] = useState<boolean>(false);
+
+  const initApp = useCallback(async () => {
+    // 1. Storage persistence
+    requestStoragePersistence().catch(() => {});
+
+    // 2. Saved language preference
+    const kv = new KeyValueStore();
+    const savedLang = await kv.get<Language>(KV_KEY_LANGUAGE);
+    if (savedLang && (savedLang === 'en' || savedLang === 'ar')) {
+      setLanguage(savedLang);
+      setLang(savedLang);
     }
+
+    // 3. Mock user and environment bootstrap
+    const { profile, isFirstEverLaunch } = await bootstrapMockUser();
+    setMockProfile(profile);
+    setIsFirstEver(isFirstEverLaunch);
+    setIsHydrated(true);
+
+    // 4. Launch intro timer (<= 2000ms for first ever, 600ms for subsequent cold launches)
+    const timerDuration = isFirstEverLaunch ? 1800 : 600;
+    const timer = setTimeout(() => {
+      setShowIntro(false);
+    }, timerDuration);
+
+    return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    const unsubLang = subscribeLanguage((newLang) => {
+      setLang(newLang);
+    });
+
+    initApp();
+
+    return () => {
+      unsubLang();
+    };
+  }, [initApp]);
+
+  const handleProfileUpdated = async () => {
+    const kv = new KeyValueStore();
+    const profile = await kv.get<MockUserProfile>('mock_athlete_profile');
+    if (profile) setMockProfile(profile);
+  };
+
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center p-6 text-center font-mono">
-      <h1 className="text-3xl font-bold tracking-tight text-white mb-2">
-        Home Fitness OS
-      </h1>
-      <p className="text-neutral-400 text-sm mb-4">
-        Milestone 0 - engine foundation
-      </p>
-      {isEngineReady && (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800/80">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          Engine ready
-        </span>
+    <div className="flex-1 flex flex-col bg-[#0b0b0b] text-[#ececec] w-full min-h-screen relative overflow-x-hidden">
+      {/* Launch Splash Screen */}
+      {showIntro && (
+        <LogoIntro
+          isFirstEver={isFirstEver}
+          onComplete={() => setShowIntro(false)}
+        />
       )}
-    </main>
+
+      {/* Main Content Area: padding for safe area and bottom navigation bar (min 64px + safe-bottom) */}
+      <main
+        className="flex-1 w-full max-w-lg mx-auto p-4 safe-top safe-left safe-right pb-[88px] overflow-y-auto"
+        style={{ opacity: isHydrated ? 1 : 0 }}
+      >
+        {activeTab === 'home' && <HomeScreen />}
+        {activeTab === 'train' && <TrainScreen />}
+        {activeTab === 'progress' && <ProgressScreen />}
+        {activeTab === 'more' && (
+          <MoreScreen
+            currentLang={lang}
+            onLanguageChange={setLanguage}
+            mockProfile={mockProfile}
+            onProfileUpdated={handleProfileUpdated}
+          />
+        )}
+      </main>
+
+      {/* Fixed Bottom Navigation */}
+      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+    </div>
   );
 }

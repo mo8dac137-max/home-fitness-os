@@ -2,7 +2,7 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["vite/client", "node"]
+    "types": ["vite/client", "node", "vite-plugin-pwa/client"]
   },
   "include": [
     "src",

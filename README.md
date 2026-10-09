@@ -12,12 +12,12 @@ See [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md) for the project brief and [AG
 - `packages/engine-core`: Deterministic pure TypeScript training engine (no DOM, no Node-only APIs, no network).
 - `packages/library`: Exercise and template definitions.
 - `packages/sim`: Simulation and test harness.
-- `packages/ports`: Abstraction ports (Clock, IdGenerator).
-- `apps/web`: React + Vite + TypeScript PWA. Canonical Vite configuration lives at `apps/web/vite.config.ts`; the root `vite.config.ts` serves as an environment entry shim for the platform dev server.
+- `packages/ports`: Abstraction ports (Clock, IdGenerator, ScheduleProvider, AiProvider).
+- `apps/web`: React + Vite + TypeScript PWA application shell, offline storage, and UI screens.
 
-## Canonical Vite Configuration
+## Single Vite Configuration (M1-A)
 
-The canonical application Vite configuration is located at `apps/web/vite.config.ts`. The root `vite.config.ts` and root entry files (`index.html`, `src/`) act as development shims ensuring compatibility with single-directory container runners while preserving monorepo architecture.
+A single root `vite.config.ts` handles development, production build, and preview for both local development and Cloudflare Pages. Output directory is `dist/`. PWA service worker and Web App Manifest generation are managed via `vite-plugin-pwa`.
 
 ## Verification & Commands
 
@@ -27,4 +27,5 @@ npm run lint
 npm run typecheck
 npm test
 npm run build
+npm run check:bundle
 ```

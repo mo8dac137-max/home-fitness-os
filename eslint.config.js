@@ -56,5 +56,15 @@ export default tseslint.config(
         { name: 'indexedDB', message: 'Engine-core must be pure TypeScript: no indexedDB.' },
       ],
     },
+  },
+  {
+    files: ['scripts/**/*.{js,mjs}'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+      },
+    },
   }
 );
+
