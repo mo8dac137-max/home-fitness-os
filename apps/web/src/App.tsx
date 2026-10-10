@@ -24,9 +24,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [mockProfile, setMockProfile] = useState<MockUserProfile | null>(null);
 
-  // Intro splash states:
-  // - showIntro: boolean
-  // - isFirstEver: boolean
   const [showIntro, setShowIntro] = useState<boolean>(true);
   const [isFirstEver, setIsFirstEver] = useState<boolean>(false);
   const [isHydrated, setIsHydrated] = useState<boolean>(false);
@@ -77,7 +74,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-[#0b0b0b] text-[#ececec] w-full min-h-screen relative overflow-x-hidden">
+    <div className="flex-1 flex flex-col bg-[#0a0a10] text-[#f1f1f4] w-full min-h-screen relative overflow-x-hidden">
       {/* Launch Splash Screen */}
       {showIntro && (
         <LogoIntro
@@ -86,12 +83,14 @@ export default function App() {
         />
       )}
 
-      {/* Main Content Area: padding for safe area and bottom navigation bar (min 64px + safe-bottom) */}
+      {/* Main Content Area: padding for safe area and floating bottom nav bar (min 64px + safe-bottom) */}
       <main
-        className="flex-1 w-full max-w-lg mx-auto p-4 safe-top safe-left safe-right pb-[88px] overflow-y-auto"
+        className="flex-1 w-full max-w-lg mx-auto p-4 safe-top safe-left safe-right pb-[96px] overflow-y-auto"
         style={{ opacity: isHydrated ? 1 : 0 }}
       >
-        {activeTab === 'home' && <HomeScreen />}
+        {activeTab === 'home' && (
+          <HomeScreen onNavigateTrain={() => setActiveTab('train')} />
+        )}
         {activeTab === 'train' && <TrainScreen />}
         {activeTab === 'progress' && <ProgressScreen />}
         {activeTab === 'more' && (
@@ -104,7 +103,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Fixed Bottom Navigation */}
+      {/* Floating Bottom Navigation */}
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );

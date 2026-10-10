@@ -1,8 +1,8 @@
 # Milestone 1-A Completion Report: PWA Shell + Local Storage + App Skeleton
 
 **Project:** Home Fitness OS  
-**Status:** M1-A completed and verified.  
-**Verification:** `npm ci && npm run lint && npm run typecheck && npm test && npm run build && npm run check:bundle` passed with 0 errors across 13 test files and 120 tests.
+**Status:** M1-A completed, diagnosed, and verified.  
+**Verification:** `npm ci && npm run lint && npm run typecheck && npm test && npm run build && node scripts/check-bundle-size.mjs` passed with 0 errors across 13 test files and 120 tests from a completely clean state.
 
 ---
 
@@ -20,6 +20,7 @@
   - `/assets/*`: `Cache-Control: public, max-age=31536000, immutable`
 - Removed unused `apps/web/vite.config.ts` and `apps/web/index.html`.
 - Updated `README.md` documenting the unified Vite config, PWA integration, and bundle check script.
+- `package-lock.json`: Regenerated with `npm install` without `--force` or `--legacy-peer-deps` so all transitive dependencies for `vite-plugin-pwa` and `fake-indexeddb` are present and lockfile is in sync for clean `npm ci`.
 
 ### 2. IndexedDB Local Storage Layer (`apps/web/src/storage`)
 - `apps/web/src/storage/idb.ts`: Raw IndexedDB promise wrapper for database `"hfos"` v1 with object stores `"events"` (keyPath: `event_id`, unique index: `idempotency_key`, index: `occurred_at`) and `"kv"`.
@@ -44,8 +45,8 @@
 - `apps/web/src/components/LogoIntro.tsx`: Minimalist kinetic barbell SVG intro (<= 1.8s for first-ever launch, 600ms for subsequent cold launches, tap to skip, respects reduced motion). Does not block user interaction longer than hydration requires.
 
 ### 6. Mock User Bootstrap & Data Management
-- `apps/web/src/bootstrap.ts`: Automatically seeds `MockUser` from `@hfos/sim` and declared environment items (`floor`, `wall`, `door`, `chair`) on first launch.
-- Small permanent "MOCK USER" badge rendered in More tab.
+- `apps/web/src/bootstrap.ts`: Automatically seeds `MockUser` from `@hfos/sim` and declared environment items (`floor`, `wall`, `door`, `chair`) into IndexedDB on first launch.
+- Small permanent "MOCK USER" badge in More.
 - **More > Data Management**:
   - Displays athlete ID, codename, baseline fitness level, and priorities.
   - "Export JSON": Downloads complete backup of athlete profile, environment, kv store, and all events.
@@ -53,7 +54,7 @@
 
 ### 7. Diagnostics Screen & PWA Update Banner
 - `apps/web/src/screens/MoreScreen.tsx` (**More > About & Diagnostics**):
-  - Displays App version (0.1.0), build commit (`CF_PAGES_COMMIT_SHA` or "dev"), network state (Online / Offline Local-First), display mode (Standalone PWA / Browser Tab), service worker registration state, storage persistence status (Yes/No), stored event count from IndexedDB, and effective config key count from `@hfos/config`.
+  - Displays app version (0.1.0), build commit (`CF_PAGES_COMMIT_SHA` or "dev"), network state (Online / Offline), standalone display mode, service worker status, storage persistence, stored events count, effective settings keys count, and PWA update banner.
 - `apps/web/src/components/UpdateBanner.tsx`: Shows "Update available - Apply" when a new service worker is waiting. Triggered on More screen.
 
 ### 8. Performance Budget Check
@@ -63,32 +64,59 @@
 
 ---
 
-## 2. Verification Results
+## 2. CI & Build Failure Diagnosis and Resolution
 
-- `npm run lint`: **0 errors**.
-- `npm run typecheck`: **0 errors**.
-- `npm test`: **13 test files, 120 tests passed**.
-- `npm run build`: **Built successfully** with Service Worker generation (`dist/sw.js`).
-- `npm run check:bundle`: **141.84 KB gzipped** (Passed, budget: 300 KB).
+### Exact Error in CI (`npm ci` step):
+When CI ran `npm ci` on commit `cfb6314`, `package-lock.json` was out of sync with `package.json` because new devDependencies (`vite-plugin-pwa` and `fake-indexeddb`) had been added to `package.json` without updating transitive dependency trees in `package-lock.json`. This caused `npm ci` to fail immediately (~25s):
+
+```text
+npm error Missing: signal-exit@4.1.0 from lock file
+npm error Missing: @isaacs/cliui@9.0.0 from lock file
+npm error Missing: async@3.2.6 from lock file
+npm error Missing: filelist@1.0.6 from lock file
+npm error Missing: minimatch@5.1.9 from lock file
+npm error Missing: lru-cache@11.5.3 from lock file
+...
+npm error Missing: idb@7.1.1 from lock file
+npm error Missing: @types/trusted-types@2.0.7 from lock file
+...
+npm error Clean install a project
+```
+
+### Resolution:
+1. Ran `npm install` (standard npm, without `--force` or `--legacy-peer-deps`) using compatible versions (`vite-plugin-pwa@^2.0.0` compatible with Vite 6.x, `fake-indexeddb@^6.2.5`).
+2. Regenerated complete, self-contained `package-lock.json` (7,929 lines, 277 KB).
+3. Verified clean `rm -rf node_modules && npm ci` exits with real code `0`.
 
 ---
 
-## 3. Decisions Made
+## 3. Real Exit Codes (Clean Run)
+
+Commands executed in required sequence from a clean state:
+1. `npm run lint` -> **Exit code 0**
+2. `npm run typecheck` -> **Exit code 0**
+3. `npm test` -> **Exit code 0** (13 test files, 120 tests passed)
+4. `npm run build` -> **Exit code 0** (dist generated with service worker)
+5. `node scripts/check-bundle-size.mjs` -> **Exit code 0** (141.84 KB gzipped < 300 KB budget)
+
+---
+
+## 4. Decisions Made
 1. **PWA Registration Type:** Set `registerType: "prompt"` in `VitePWA` so new versions are never auto-reloaded during workout sessions; update is applied via the `UpdateBanner` component.
 2. **Persistence Guarantee:** Invoked `navigator.storage.persist()` on launch to request durable IndexedDB storage on Android / Chrome.
 3. **Safe Area Insets:** Content container uses `safe-top`, `safe-left`, `safe-right`, and padding-bottom of 88px (`pb-[88px]`) to ensure the fixed 64px bottom nav and system navigation gesture bar never obscure interactive cards or buttons.
 
 ---
 
-## 4. Deviations
-- None. All requirements of Milestone 1-A were completed with zero hard rule violations. No external UI, router, animation, or state libraries were introduced.
-
----
-
-## 5. Conflicts with the Brief
+## 5. Deviations
 - None.
 
 ---
 
-## 6. Open Items
+## 6. Conflicts with the Brief
+- None.
+
+---
+
+## 7. Open Items
 - Next milestone will implement the active workout execution flow and plan viewer according to Milestone 1 specifications.

@@ -9,6 +9,9 @@ import {
 import { getEffectiveConfig } from '@hfos/config';
 import type { MockUserProfile } from '@hfos/sim';
 import { UpdateBanner } from '../components/UpdateBanner.js';
+import { ClayCard } from '../components/ClayCard.js';
+import { ClayButton } from '../components/ClayButton.js';
+import { Icon } from '../components/IconSet.js';
 
 interface MoreScreenProps {
   currentLang: Language;
@@ -17,7 +20,7 @@ interface MoreScreenProps {
   onProfileUpdated: () => void;
 }
 
-type MoreSubView = 'menu' | 'settings' | 'data' | 'about';
+type MoreSubView = 'menu' | 'settings' | 'equipment' | 'data' | 'about';
 
 export const MoreScreen: React.FC<MoreScreenProps> = ({
   currentLang,
@@ -41,18 +44,16 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
 
-  // Environment state for Data screen
+  // Environment state for Equipment screen
   const [envState, setEnvState] = useState<MockEnvironmentState | null>(null);
 
   useEffect(() => {
-    // Check standalone
     if (typeof window !== 'undefined') {
       const isStandalonePwa =
         window.matchMedia('(display-mode: standalone)').matches ||
         (window.navigator as unknown as { standalone?: boolean }).standalone === true;
       setIsStandalone(isStandalonePwa);
 
-      // Online/offline listeners
       const handleOnline = () => setIsOnline(true);
       const handleOffline = () => setIsOnline(false);
       window.addEventListener('online', handleOnline);
@@ -67,7 +68,6 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
 
   useEffect(() => {
     if (subView === 'about') {
-      // Refresh diagnostics
       isStoragePersisted().then(setPersisted);
       new IndexedDbEventLog().count().then(setEventCount);
 
@@ -91,7 +91,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
       }
     }
 
-    if (subView === 'data') {
+    if (subView === 'data' || subView === 'equipment') {
       const kv = new KeyValueStore();
       kv.get<MockEnvironmentState>('mock_athlete_environment').then((res: MockEnvironmentState | null) => {
         if (res) setEnvState(res);
@@ -143,118 +143,178 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
   // 1. Settings sub-view
   if (subView === 'settings') {
     return (
-      <div className="flex flex-col gap-6">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-5 animate-screen-enter pb-10">
+        <div className="flex items-center gap-3 px-1">
           <button
             onClick={() => setSubView('menu')}
-            className="touch-target p-2 rounded-[var(--radius-sm)] bg-[var(--surface-2)] text-[var(--text)] transition-motion active:scale-95 cursor-pointer"
+            className="touch-target p-2 rounded-[var(--radius-chip)] clay-sm text-white cursor-pointer active:scale-95"
           >
             ← {t('common.close')}
           </button>
-          <h2 className="text-xl font-bold">{t('settings.title')}</h2>
+          <h2 className="text-xl font-black text-white">{t('settings.title')}</h2>
         </div>
 
-        <div className="bg-[var(--surface)] p-5 rounded-[var(--radius-lg)] border border-neutral-800/80 flex flex-col gap-4">
+        <ClayCard variant="hero" className="flex flex-col gap-4">
           <div>
-            <h3 className="font-semibold text-base">{t('settings.language_label')}</h3>
+            <h3 className="font-bold text-base text-white">{t('settings.language_label')}</h3>
             <p className="text-xs text-[var(--muted)] mt-1">{t('settings.language_desc')}</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => handleLanguageSelect('en')}
-              className={`touch-target px-4 py-3 rounded-[var(--radius-md)] border text-sm font-medium transition-motion cursor-pointer ${
+              className={`touch-target px-4 py-3 rounded-[var(--radius-chip)] border text-sm font-bold transition-motion cursor-pointer ${
                 currentLang === 'en'
-                  ? 'border-[var(--accent)] bg-[var(--surface-2)] text-white font-bold'
-                  : 'border-neutral-800 bg-[#0b0b0b] text-[var(--muted)]'
+                  ? 'border-[var(--accent)] bg-white/10 text-[var(--accent)] shadow-md'
+                  : 'border-white/5 bg-[var(--surface-flat)] text-[var(--muted)]'
               }`}
             >
               {t('settings.en')}
             </button>
             <button
               onClick={() => handleLanguageSelect('ar')}
-              className={`touch-target px-4 py-3 rounded-[var(--radius-md)] border text-sm font-medium transition-motion cursor-pointer ${
+              className={`touch-target px-4 py-3 rounded-[var(--radius-chip)] border text-sm font-bold transition-motion cursor-pointer ${
                 currentLang === 'ar'
-                  ? 'border-[var(--accent)] bg-[var(--surface-2)] text-white font-bold'
-                  : 'border-neutral-800 bg-[#0b0b0b] text-[var(--muted)]'
+                  ? 'border-[var(--accent)] bg-white/10 text-[var(--accent)] shadow-md'
+                  : 'border-white/5 bg-[var(--surface-flat)] text-[var(--muted)]'
               }`}
             >
               {t('settings.ar')}
             </button>
           </div>
-        </div>
+        </ClayCard>
 
-        <div className="bg-[var(--surface)] p-5 rounded-[var(--radius-lg)] border border-neutral-800/80 flex flex-col gap-2">
-          <h3 className="font-semibold text-base">{t('settings.theme_label')}</h3>
+        <ClayCard variant="hero" className="flex flex-col gap-2">
+          <h3 className="font-bold text-base text-white">{t('settings.theme_label')}</h3>
           <p className="text-xs text-[var(--muted)]">{t('settings.theme_value')}</p>
-        </div>
+        </ClayCard>
       </div>
     );
   }
 
-  // 2. Data management sub-view
-  if (subView === 'data') {
+  // 2. Equipment sub-view
+  if (subView === 'equipment') {
     return (
-      <div className="flex flex-col gap-6">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-5 animate-screen-enter pb-10">
+        <div className="flex items-center gap-3 px-1">
           <button
             onClick={() => setSubView('menu')}
-            className="touch-target p-2 rounded-[var(--radius-sm)] bg-[var(--surface-2)] text-[var(--text)] transition-motion active:scale-95 cursor-pointer"
+            className="touch-target p-2 rounded-[var(--radius-chip)] clay-sm text-white cursor-pointer active:scale-95"
           >
             ← {t('common.close')}
           </button>
-          <h2 className="text-xl font-bold">{t('data.title')}</h2>
+          <h2 className="text-xl font-black text-white">Equipment & Environment</h2>
+        </div>
+
+        <ClayCard variant="hero" className="flex flex-col gap-3">
+          <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+            Declared Environment Items
+          </h3>
+          <p className="text-xs text-[var(--muted)]">
+            Items require verification before compound exercise assignment.
+          </p>
+
+          <div className="flex flex-col gap-2 pt-2">
+            {[
+              { id: 'floor', label: 'Clear Floor Area', status: 'validated' },
+              { id: 'wall', label: 'Solid Wall Space', status: 'validated' },
+              { id: 'door', label: 'Sturdy Interior Door', status: 'declared' },
+              { id: 'chair', label: 'Stable Chair / Bench', status: 'declared' },
+              { id: 'table', label: 'Heavy Table', status: 'unknown' },
+            ].map((item) => (
+              <div
+                key={item.id}
+                className="clay-sm p-3.5 flex items-center justify-between border border-white/5"
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full ${
+                      item.status === 'validated'
+                        ? 'bg-[var(--ok)]'
+                        : item.status === 'declared'
+                        ? 'bg-[var(--yellow)]'
+                        : 'bg-white/20'
+                    }`}
+                  />
+                  <span className="font-bold text-sm text-white">{item.label}</span>
+                </div>
+                <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-white/5 text-[var(--muted)]">
+                  {item.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </ClayCard>
+      </div>
+    );
+  }
+
+  // 3. Data management sub-view
+  if (subView === 'data') {
+    return (
+      <div className="flex flex-col gap-5 animate-screen-enter pb-10">
+        <div className="flex items-center gap-3 px-1">
+          <button
+            onClick={() => setSubView('menu')}
+            className="touch-target p-2 rounded-[var(--radius-chip)] clay-sm text-white cursor-pointer active:scale-95"
+          >
+            ← {t('common.close')}
+          </button>
+          <h2 className="text-xl font-black text-white">{t('data.title')}</h2>
         </div>
 
         {resetMessage && (
-          <div className="bg-emerald-950/80 border border-emerald-700 text-emerald-300 p-3 rounded-[var(--radius-md)] text-xs">
+          <div className="clay-sm bg-emerald-950/80 border border-emerald-700 text-emerald-300 p-3.5 text-xs font-semibold">
             {resetMessage}
           </div>
         )}
 
         {/* Profile Card */}
-        <div className="bg-[var(--surface)] p-5 rounded-[var(--radius-lg)] border border-neutral-800/80 flex flex-col gap-3">
-          <h3 className="text-sm font-semibold text-[var(--accent)] uppercase tracking-wider">
+        <ClayCard variant="hero" className="flex flex-col gap-3">
+          <h3 className="text-sm font-bold text-[var(--accent)] uppercase tracking-wider">
             {t('data.user_profile')}
           </h3>
           <div className="grid grid-cols-2 gap-2 text-xs">
             <span className="text-[var(--muted)]">{t('data.user_id')}:</span>
-            <span className="font-mono truncate">{mockProfile?.id ?? 'N/A'}</span>
+            <span className="font-mono truncate text-white">{mockProfile?.id ?? 'N/A'}</span>
 
             <span className="text-[var(--muted)]">{t('data.codename')}:</span>
-            <span className="font-mono font-medium">{mockProfile?.codename ?? 'N/A'}</span>
+            <span className="font-mono font-medium text-white">{mockProfile?.codename ?? 'N/A'}</span>
 
             <span className="text-[var(--muted)]">{t('data.fitness_level')}:</span>
-            <span className="font-mono">{mockProfile?.fitness_level ?? 'N/A'}</span>
+            <span className="font-mono text-white">{mockProfile?.fitness_level ?? 'N/A'}</span>
 
             <span className="text-[var(--muted)]">{t('data.equipment')}:</span>
-            <span>{mockProfile?.available_equipment.join(', ') || 'bodyweight'}</span>
+            <span className="text-white">{mockProfile?.available_equipment.join(', ') || 'bodyweight'}</span>
 
             <span className="text-[var(--muted)]">{t('data.priorities')}:</span>
-            <span>{mockProfile?.physique_priorities.join(', ') || 'chest, back'}</span>
+            <span className="text-white">{mockProfile?.physique_priorities.join(', ') || 'chest, back'}</span>
           </div>
-        </div>
+        </ClayCard>
 
         {/* Action Buttons */}
         <div className="flex flex-col gap-3">
-          <button
+          <ClayButton
+            variant="secondary"
             onClick={handleExportJson}
-            className="touch-target w-full py-3 px-4 rounded-[var(--radius-md)] bg-[var(--surface-2)] text-[var(--text)] font-semibold text-sm border border-neutral-800 transition-motion active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+            className="w-full text-sm font-bold"
           >
-            <span>📥</span> {t('data.export_btn')}
-          </button>
+            <span>📥</span>
+            <span>{t('data.export_btn')}</span>
+          </ClayButton>
 
           <button
             onClick={() => setShowResetConfirm(true)}
-            className="touch-target w-full py-3 px-4 rounded-[var(--radius-md)] bg-rose-950/60 text-[var(--danger)] font-semibold text-sm border border-rose-900 transition-motion active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+            className="touch-target w-full py-3.5 px-4 rounded-[var(--radius-chip)] bg-rose-950/60 text-[var(--danger)] font-bold text-sm border border-rose-900 transition-motion active:scale-95 cursor-pointer flex items-center justify-center gap-2"
           >
-            <span>⚠️</span> {t('data.reset_btn')}
+            <span>⚠️</span>
+            <span>{t('data.reset_btn')}</span>
           </button>
         </div>
 
         {/* Reset Confirmation Dialog */}
         {showResetConfirm && (
           <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-            <div className="bg-[var(--surface)] border border-neutral-800 p-6 rounded-[var(--radius-lg)] max-w-sm w-full flex flex-col gap-4">
+            <ClayCard variant="hero" className="max-w-sm w-full flex flex-col gap-4 border border-white/10">
               <h3 className="font-bold text-lg text-white">{t('data.reset_confirm_title')}</h3>
               <p className="text-xs text-[var(--muted)] leading-relaxed">
                 {t('data.reset_confirm_desc')}
@@ -262,48 +322,48 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
               <div className="flex gap-3 justify-end mt-2">
                 <button
                   onClick={() => setShowResetConfirm(false)}
-                  className="touch-target px-4 py-2 rounded-[var(--radius-sm)] bg-[var(--surface-2)] text-[var(--muted)] text-sm cursor-pointer"
+                  className="touch-target px-4 py-2 rounded-[var(--radius-chip)] clay-sm text-[var(--muted)] text-sm cursor-pointer"
                 >
                   {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleConfirmReset}
-                  className="touch-target px-4 py-2 rounded-[var(--radius-sm)] bg-[var(--danger)] text-black font-bold text-sm cursor-pointer"
+                  className="touch-target px-4 py-2 rounded-[var(--radius-chip)] bg-[var(--danger)] text-black font-bold text-sm cursor-pointer"
                 >
                   {t('common.confirm')}
                 </button>
               </div>
-            </div>
+            </ClayCard>
           </div>
         )}
       </div>
     );
   }
 
-  // 3. About & Diagnostics sub-view
+  // 4. About & Diagnostics sub-view
   if (subView === 'about') {
     return (
-      <div className="flex flex-col gap-6">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-5 animate-screen-enter pb-10">
+        <div className="flex items-center gap-3 px-1">
           <button
             onClick={() => setSubView('menu')}
-            className="touch-target p-2 rounded-[var(--radius-sm)] bg-[var(--surface-2)] text-[var(--text)] transition-motion active:scale-95 cursor-pointer"
+            className="touch-target p-2 rounded-[var(--radius-chip)] clay-sm text-white cursor-pointer active:scale-95"
           >
             ← {t('common.close')}
           </button>
-          <h2 className="text-xl font-bold">{t('about.title')}</h2>
+          <h2 className="text-xl font-black text-white">{t('about.title')}</h2>
         </div>
 
         {/* Update Banner */}
         <UpdateBanner />
 
-        <div className="bg-[var(--surface)] p-5 rounded-[var(--radius-lg)] border border-neutral-800/80 flex flex-col gap-3">
-          <h3 className="text-sm font-semibold text-[var(--accent)] uppercase tracking-wider mb-1">
-            System Status
+        <ClayCard variant="hero" className="flex flex-col gap-3">
+          <h3 className="text-sm font-bold text-[var(--accent)] uppercase tracking-wider mb-1">
+            System Diagnostics
           </h3>
           <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-xs">
             <span className="text-[var(--muted)]">{t('about.version')}:</span>
-            <span className="font-mono font-medium">0.1.0 (Milestone 1-A)</span>
+            <span className="font-mono font-medium text-white">0.1.0 (M1-A2 Dark Clay)</span>
 
             <span className="text-[var(--muted)]">{t('about.commit')}:</span>
             <span className="font-mono text-neutral-300">
@@ -311,75 +371,108 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
             </span>
 
             <span className="text-[var(--muted)]">{t('about.online')}:</span>
-            <span className={isOnline ? 'text-[var(--ok)]' : 'text-[var(--danger)]'}>
+            <span className={isOnline ? 'text-[var(--ok)] font-bold' : 'text-[var(--danger)] font-bold'}>
               {isOnline ? t('about.online_true') : t('about.online_false')}
             </span>
 
             <span className="text-[var(--muted)]">{t('about.standalone')}:</span>
-            <span>{isStandalone ? t('about.standalone_true') : t('about.standalone_false')}</span>
+            <span className="text-white font-medium">
+              {isStandalone ? t('about.standalone_true') : t('about.standalone_false')}
+            </span>
 
             <span className="text-[var(--muted)]">{t('about.sw_state')}:</span>
-            <span className="font-mono">{swState}</span>
+            <span className="font-mono text-white">{swState}</span>
 
             <span className="text-[var(--muted)]">{t('about.storage_persisted')}:</span>
-            <span className={persisted ? 'text-[var(--ok)]' : 'text-[var(--muted)]'}>
+            <span className={persisted ? 'text-[var(--ok)] font-bold' : 'text-[var(--muted)]'}>
               {persisted ? t('common.yes') : t('common.no')}
             </span>
 
             <span className="text-[var(--muted)]">{t('about.events_count')}:</span>
-            <span className="font-mono">{eventCount}</span>
+            <span className="font-mono text-white">{eventCount}</span>
 
             <span className="text-[var(--muted)]">{t('about.config_keys')}:</span>
-            <span className="font-mono">{configKeyCount} keys</span>
+            <span className="font-mono text-white">{configKeyCount} keys</span>
           </div>
-        </div>
+        </ClayCard>
       </div>
     );
   }
 
-  // 4. Default Menu view
+  // 5. Default Grouped Menu view
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold tracking-tight">{t('more.title')}</h2>
+    <div className="flex flex-col gap-5 animate-screen-enter pb-10">
+      <div className="flex items-center justify-between px-1">
+        <h2 className="text-2xl font-black tracking-tight text-white">{t('more.title')}</h2>
         {/* Permanent small MOCK USER badge */}
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-widest bg-amber-950/80 text-amber-400 border border-amber-800/80 uppercase">
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black tracking-widest bg-amber-950/80 text-amber-400 border border-amber-800/80 uppercase">
           {t('common.mock_user_badge')}
         </span>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2.5">
         <button
           onClick={() => setSubView('settings')}
-          className="touch-target w-full bg-[var(--surface)] hover:bg-[var(--surface-2)] p-4 rounded-[var(--radius-md)] border border-neutral-800 text-left flex items-center justify-between transition-motion active:scale-98 cursor-pointer"
+          className="clay-sm p-4 w-full flex items-center justify-between text-left cursor-pointer transition-motion active:scale-98 border border-white/5"
         >
-          <div className="flex items-center gap-3">
-            <span className="text-lg">⚙️</span>
-            <span className="font-medium text-sm">{t('more.item_settings')}</span>
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[var(--accent)]">
+              <Icon name="target" size={18} color="var(--accent)" />
+            </div>
+            <div>
+              <div className="font-bold text-sm text-white">{t('more.item_settings')}</div>
+              <div className="text-xs text-[var(--muted)]">Language & display preferences</div>
+            </div>
           </div>
-          <span className="text-[var(--muted)]">›</span>
+          <span className="text-[var(--muted)] text-lg">›</span>
+        </button>
+
+        <button
+          onClick={() => setSubView('equipment')}
+          className="clay-sm p-4 w-full flex items-center justify-between text-left cursor-pointer transition-motion active:scale-98 border border-white/5"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[var(--teal)]">
+              <Icon name="shield" size={18} color="var(--teal)" />
+            </div>
+            <div>
+              <div className="font-bold text-sm text-white">Equipment & Environment</div>
+              <div className="text-xs text-[var(--muted)]">Inspect home workout surfaces</div>
+            </div>
+          </div>
+          <span className="text-[var(--muted)] text-lg">›</span>
         </button>
 
         <button
           onClick={() => setSubView('data')}
-          className="touch-target w-full bg-[var(--surface)] hover:bg-[var(--surface-2)] p-4 rounded-[var(--radius-md)] border border-neutral-800 text-left flex items-center justify-between transition-motion active:scale-98 cursor-pointer"
+          className="clay-sm p-4 w-full flex items-center justify-between text-left cursor-pointer transition-motion active:scale-98 border border-white/5"
         >
-          <div className="flex items-center gap-3">
-            <span className="text-lg">💾</span>
-            <span className="font-medium text-sm">{t('more.item_data')}</span>
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[var(--coral)]">
+              <Icon name="chart" size={18} color="var(--coral)" />
+            </div>
+            <div>
+              <div className="font-bold text-sm text-white">{t('more.item_data')}</div>
+              <div className="text-xs text-[var(--muted)]">Export JSON & reset local storage</div>
+            </div>
           </div>
-          <span className="text-[var(--muted)]">›</span>
+          <span className="text-[var(--muted)] text-lg">›</span>
         </button>
 
         <button
           onClick={() => setSubView('about')}
-          className="touch-target w-full bg-[var(--surface)] hover:bg-[var(--surface-2)] p-4 rounded-[var(--radius-md)] border border-neutral-800 text-left flex items-center justify-between transition-motion active:scale-98 cursor-pointer"
+          className="clay-sm p-4 w-full flex items-center justify-between text-left cursor-pointer transition-motion active:scale-98 border border-white/5"
         >
-          <div className="flex items-center gap-3">
-            <span className="text-lg">ℹ️</span>
-            <span className="font-medium text-sm">{t('more.item_about')}</span>
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[var(--cyan)]">
+              <Icon name="bolt" size={18} color="var(--cyan)" />
+            </div>
+            <div>
+              <div className="font-bold text-sm text-white">{t('more.item_about')}</div>
+              <div className="text-xs text-[var(--muted)]">Diagnostics & PWA update check</div>
+            </div>
           </div>
-          <span className="text-[var(--muted)]">›</span>
+          <span className="text-[var(--muted)] text-lg">›</span>
         </button>
       </div>
     </div>

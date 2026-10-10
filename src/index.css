@@ -1,3 +1,4 @@
 @import "tailwindcss";
 @import "../apps/web/src/styles/tokens.css";
+@import "../apps/web/src/styles/clay.css";
 @import "../apps/web/src/index.css";
