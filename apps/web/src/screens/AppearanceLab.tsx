@@ -46,7 +46,7 @@ export const AppearanceLab: React.FC<AppearanceLabProps> = ({
             onClick={onClose}
             className="touch-target p-2 rounded-[var(--radius-chip)] clay-sm text-white cursor-pointer active:scale-95"
           >
-            ← {t('common.close')}
+            <span className="icon-directional">←</span> {t('common.close')}
           </button>
           <h2 className="text-xl font-black text-white">{t('appearance.title')}</h2>
         </div>

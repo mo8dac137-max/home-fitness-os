@@ -89,7 +89,7 @@ export const TrainScreen: React.FC = () => {
                   {t('train.session_unit')}
                 </h3>
               </div>
-              <span className="px-2 py-1 rounded text-xs font-mono font-bold bg-white/5 text-white border border-white/10">
+              <span className="px-2 py-1 rounded text-xs font-mono font-bold bg-white/5 text-white border border-white/10 ltr-num">
                 {t('train.session_duration')}
               </span>
             </div>
@@ -114,11 +114,11 @@ export const TrainScreen: React.FC = () => {
                     <div>
                       <div className="font-bold text-sm text-white">{item.name}</div>
                       <div className="text-[11px] text-[var(--muted)] capitalize">
-                        {item.pattern.replace('_', ' ')} • {t('train.level_label')} {item.level}
+                        {item.pattern.replace('_', ' ')} • <span className="ltr-num">{t('train.level_label')} {item.level}</span>
                       </div>
                     </div>
                   </div>
-                  <span className="font-mono text-xs font-bold text-neutral-300">
+                  <span className="font-mono text-xs font-bold text-neutral-300 ltr-num">
                     {item.sets}
                   </span>
                 </div>

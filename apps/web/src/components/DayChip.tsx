@@ -60,7 +60,7 @@ export const DayChip: React.FC<DayChipProps> = ({
       <span className="text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider">
         {dayName}
       </span>
-      <span className="text-sm font-black text-white font-mono">
+      <span className="text-sm font-black text-white font-mono ltr-num">
         {dayNumber}
       </span>
       <div className="flex items-center justify-center gap-0.5">

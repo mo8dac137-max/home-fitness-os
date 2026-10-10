@@ -50,7 +50,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTrain }) => {
         </div>
         <div className="clay-sm px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-[var(--accent)] font-mono border border-white/5">
           <Icon name="clock" size={13} color="var(--accent)" />
-          <span>{t('home.week_1')}</span>
+          <span className="ltr-num">{t('home.week_1')}</span>
         </div>
       </div>
 
@@ -63,7 +63,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTrain }) => {
                 <Icon name="lock" size={10} color="currentColor" />
                 {t('home.today_day_0')}
               </span>
-              <span className="text-xs text-[var(--muted)] font-mono">{t('home.session_duration')}</span>
+              <span className="text-xs text-[var(--muted)] font-mono ltr-num">{t('home.session_duration')}</span>
             </div>
             <h3 className="text-xl font-black text-white tracking-tight">
               {t('home.session_title')}
@@ -76,11 +76,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTrain }) => {
 
         {/* Exercises meta */}
         <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
-          <span className="font-semibold text-white">{t('home.exercises_count')}</span>
+          <span className="font-semibold text-white ltr-num">{t('home.exercises_count')}</span>
           <span>•</span>
-          <span>{t('home.working_sets')}</span>
+          <span className="ltr-num">{t('home.working_sets')}</span>
           <span>•</span>
-          <span className="text-[var(--accent)] font-mono">{t('home.rpe_target')}</span>
+          <span className="text-[var(--accent)] font-mono ltr-num">{t('home.rpe_target')}</span>
         </div>
 
         {/* Muscle chips */}
@@ -132,7 +132,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTrain }) => {
           </div>
           <div className="flex items-center justify-center py-2">
             <Ring progress={0.75} size={72} strokeWidth={7} color="var(--accent)">
-              <div className="text-center font-mono">
+              <div className="text-center font-mono ltr-num">
                 <span className="text-lg font-black text-white">3</span>
                 <span className="text-xs text-[var(--muted)]">/4</span>
               </div>

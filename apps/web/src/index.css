@@ -43,6 +43,11 @@ body {
   padding-block-end: env(safe-area-inset-bottom, 0px);
 }
 
+/* Scrollable Content Safe Padding (Bottom Nav Height + Safe Area + 16px) */
+.content-scroll-area {
+  padding-block-end: calc(72px + env(safe-area-inset-bottom, 0px) + 16px);
+}
+
 .safe-left {
   padding-inline-start: env(safe-area-inset-left, 0px);
 }
@@ -64,7 +69,19 @@ body {
   transition-timing-function: var(--motion-timing);
 }
 
-/* Screen Enter Animation */
+/* RTL Number / Units Isolation: Latin 0-9 digits in fixed order */
+.ltr-num {
+  direction: ltr;
+  unicode-bidi: isolate;
+  display: inline-block;
+}
+
+/* Directional Icons: Mirrored in RTL */
+[dir="rtl"] .icon-directional {
+  transform: scaleX(-1);
+}
+
+/* Screen Enter Animation (logical directional aware) */
 @keyframes screenEnter {
   from {
     opacity: 0;

@@ -163,7 +163,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
             onClick={() => setSubView('menu')}
             className="touch-target p-2 rounded-[var(--radius-chip)] clay-sm text-white cursor-pointer active:scale-95"
           >
-            ← {t('common.close')}
+            <span className="icon-directional">←</span> {t('common.close')}
           </button>
           <h2 className="text-xl font-black text-white">{t('settings.title')}</h2>
         </div>
@@ -225,7 +225,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
             onClick={() => setSubView('menu')}
             className="touch-target p-2 rounded-[var(--radius-chip)] clay-sm text-white cursor-pointer active:scale-95"
           >
-            ← {t('common.close')}
+            <span className="icon-directional">←</span> {t('common.close')}
           </button>
           <h2 className="text-xl font-black text-white">{t('equipment.title')}</h2>
         </div>
@@ -282,7 +282,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
             onClick={() => setSubView('menu')}
             className="touch-target p-2 rounded-[var(--radius-chip)] clay-sm text-white cursor-pointer active:scale-95"
           >
-            ← {t('common.close')}
+            <span className="icon-directional">←</span> {t('common.close')}
           </button>
           <h2 className="text-xl font-black text-white">{t('data.title')}</h2>
         </div>
@@ -374,7 +374,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
             onClick={() => setSubView('menu')}
             className="touch-target p-2 rounded-[var(--radius-chip)] clay-sm text-white cursor-pointer active:scale-95"
           >
-            ← {t('common.close')}
+            <span className="icon-directional">←</span> {t('common.close')}
           </button>
           <h2 className="text-xl font-black text-white">{t('about.title')}</h2>
         </div>
@@ -449,7 +449,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
               <div className="text-xs text-[var(--muted)]">{t('more.item_settings_desc')}</div>
             </div>
           </div>
-          <span className="text-[var(--muted)] text-lg">›</span>
+          <span className="text-[var(--muted)] text-lg icon-directional">›</span>
         </button>
 
         <button
@@ -465,7 +465,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
               <div className="text-xs text-[var(--muted)]">{t('more.item_appearance_desc')}</div>
             </div>
           </div>
-          <span className="text-[var(--muted)] text-lg">›</span>
+          <span className="text-[var(--muted)] text-lg icon-directional">›</span>
         </button>
 
         <button
@@ -481,7 +481,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
               <div className="text-xs text-[var(--muted)]">{t('more.item_equipment_desc')}</div>
             </div>
           </div>
-          <span className="text-[var(--muted)] text-lg">›</span>
+          <span className="text-[var(--muted)] text-lg icon-directional">›</span>
         </button>
 
         <button
@@ -497,7 +497,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
               <div className="text-xs text-[var(--muted)]">{t('more.item_data_desc')}</div>
             </div>
           </div>
-          <span className="text-[var(--muted)] text-lg">›</span>
+          <span className="text-[var(--muted)] text-lg icon-directional">›</span>
         </button>
 
         <button
@@ -513,7 +513,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
               <div className="text-xs text-[var(--muted)]">{t('more.item_about_desc')}</div>
             </div>
           </div>
-          <span className="text-[var(--muted)] text-lg">›</span>
+          <span className="text-[var(--muted)] text-lg icon-directional">›</span>
         </button>
       </div>
     </div>

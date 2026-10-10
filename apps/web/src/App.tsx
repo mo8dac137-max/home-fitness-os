@@ -90,9 +90,9 @@ export default function App() {
         />
       )}
 
-      {/* Main Content Area: padding for safe area and floating bottom nav bar (min 64px + safe-bottom) */}
+      {/* Main Content Area: padding for safe area and floating bottom nav bar (min 72px + safe-bottom + 16px) */}
       <main
-        className="flex-1 w-full max-w-lg mx-auto p-4 safe-top safe-left safe-right pb-[96px] overflow-y-auto"
+        className="flex-1 w-full max-w-lg mx-auto p-4 safe-top safe-left safe-right content-scroll-area overflow-y-auto"
         style={{ opacity: isHydrated ? 1 : 0 }}
       >
         {activeTab === 'home' && (

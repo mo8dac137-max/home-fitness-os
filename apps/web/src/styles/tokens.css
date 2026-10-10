@@ -1,10 +1,13 @@
 /**
- * Dark Clay Design Tokens for Home Fitness OS (M1-A2 & M1-A3)
+ * Dark Clay Design Tokens for Home Fitness OS (M1-A2, M1-A3 & M1-A4)
  *
  * Source of truth for palette, movement pattern colors,
  * clay elevation variables, radius and spacing scale.
  */
 :root {
+  /* Direction variable: 1 for LTR, -1 for RTL */
+  --dir: 1;
+
   /* Surface & Base Palette */
   --bg: #0a0a10;
   --clay-1: #1e202b;
@@ -74,6 +77,10 @@
   --motion-duration: 200ms;
   --motion-duration-slow: 600ms;
   --motion-timing: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[dir="rtl"] {
+  --dir: -1;
 }
 
 @media (prefers-reduced-motion: reduce) {

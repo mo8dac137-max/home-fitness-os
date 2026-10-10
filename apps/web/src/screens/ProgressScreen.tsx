@@ -41,7 +41,7 @@ export const ProgressScreen: React.FC = () => {
             </h3>
           </div>
           <Ring progress={0.65} size={64} strokeWidth={6} color="var(--accent)">
-            <span className="text-xs font-black font-mono text-white">65%</span>
+            <span className="text-xs font-black font-mono text-white ltr-num">65%</span>
           </Ring>
         </div>
 
@@ -52,11 +52,11 @@ export const ProgressScreen: React.FC = () => {
         <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
           <div className="clay-sm p-3 flex flex-col gap-1 border border-white/5">
             <span className="text-[var(--muted)] font-medium">{t('progress.rep_targets_hit')}</span>
-            <span className="text-base font-bold text-white font-mono">{t('progress.rep_targets_value')}</span>
+            <span className="text-base font-bold text-white font-mono ltr-num">{t('progress.rep_targets_value')}</span>
           </div>
           <div className="clay-sm p-3 flex flex-col gap-1 border border-white/5">
             <span className="text-[var(--muted)] font-medium">{t('progress.avg_effort_rpe')}</span>
-            <span className="text-base font-bold text-[var(--accent)] font-mono">{t('progress.avg_effort_value')}</span>
+            <span className="text-base font-bold text-[var(--accent)] font-mono ltr-num">{t('progress.avg_effort_value')}</span>
           </div>
         </div>
       </ClayCard>
