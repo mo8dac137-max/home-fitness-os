@@ -10,6 +10,10 @@ import {
   bootstrapMockUser,
   KV_KEY_LANGUAGE,
 } from './bootstrap.js';
+import {
+  type AppearanceSettings,
+  DEFAULT_APPEARANCE,
+} from './appearance.js';
 import type { MockUserProfile } from '@hfos/sim';
 
 import { BottomNav, type TabKey } from './components/BottomNav.js';
@@ -23,6 +27,7 @@ export default function App() {
   const [lang, setLang] = useState<Language>(getLanguage());
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [mockProfile, setMockProfile] = useState<MockUserProfile | null>(null);
+  const [appearance, setAppearance] = useState<AppearanceSettings>(DEFAULT_APPEARANCE);
 
   const [showIntro, setShowIntro] = useState<boolean>(true);
   const [isFirstEver, setIsFirstEver] = useState<boolean>(false);
@@ -40,9 +45,11 @@ export default function App() {
       setLang(savedLang);
     }
 
-    // 3. Mock user and environment bootstrap
-    const { profile, isFirstEverLaunch } = await bootstrapMockUser();
+    // 3. Mock user, environment bootstrap, and appearance setup
+    const { profile, isFirstEverLaunch, appearance: loadedAppearance } =
+      await bootstrapMockUser();
     setMockProfile(profile);
+    setAppearance(loadedAppearance);
     setIsFirstEver(isFirstEverLaunch);
     setIsHydrated(true);
 
@@ -99,6 +106,8 @@ export default function App() {
             onLanguageChange={setLanguage}
             mockProfile={mockProfile}
             onProfileUpdated={handleProfileUpdated}
+            appearance={appearance}
+            onAppearanceChange={setAppearance}
           />
         )}
       </main>

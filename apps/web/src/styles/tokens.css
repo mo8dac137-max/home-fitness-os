@@ -1,5 +1,5 @@
 /**
- * Dark Clay Design Tokens for Home Fitness OS (M1-A2)
+ * Dark Clay Design Tokens for Home Fitness OS (M1-A2 & M1-A3)
  *
  * Source of truth for palette, movement pattern colors,
  * clay elevation variables, radius and spacing scale.
@@ -16,11 +16,11 @@
   --muted: #9a9cab;
 
   /* Accent & Status Colors */
-  --accent: #c6f432; /* Lime, primary action */
+  --accent: #c6f432; /* Lime preset default */
   --danger: #ff5d5d;
   --ok: #4cd964;
 
-  /* Vibrant Accent Palette */
+  /* Preset Colors */
   --coral: #ff6b57;
   --orange: #ff9f43;
   --cyan: #38d6ff;
@@ -29,6 +29,7 @@
   --pink: #ff7ac6;
   --mint: #5be3b1;
   --yellow: #ffd23f;
+  --amber: #ffb020;
   --teal: #2ec4b6;
   --lime: #c6f432;
 
@@ -44,20 +45,25 @@
   --pattern-mobility: var(--teal);
   --pattern-conditioning: var(--lime);
 
-  /* Spacing Scale (CSS Logical Properties support) */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
+  /* Appearance Lab Adjustable Controls */
+  --depth: 1; /* Depth multiplier: 0.6 (soft), 1 (medium), 1.4 (strong) */
+  --density: 1; /* Density scale: 1 (comfortable), 0.85 (compact) */
+  --r-lg: 28px; /* Corner radius: 20px (compact), 28px (round), 36px (extra round) */
+
+  /* Spacing Scale (Scales with --density) */
+  --space-1: calc(4px * var(--density));
+  --space-2: calc(8px * var(--density));
+  --space-3: calc(12px * var(--density));
+  --space-4: calc(16px * var(--density));
+  --space-5: calc(20px * var(--density));
+  --space-6: calc(24px * var(--density));
+  --space-8: calc(32px * var(--density));
 
   /* Radius Scale */
-  --radius-sm: 12px;
-  --radius-chip: 20px;
-  --radius-clay-sm: 20px;
-  --radius-clay: 28px;
+  --radius-sm: calc(var(--r-lg) * 0.43);
+  --radius-chip: calc(var(--r-lg) * 0.71);
+  --radius-clay-sm: calc(var(--r-lg) * 0.71);
+  --radius-clay: var(--r-lg);
   --radius-full: 9999px;
 
   /* Touch Target */

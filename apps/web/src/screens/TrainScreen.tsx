@@ -61,7 +61,7 @@ export const TrainScreen: React.FC = () => {
                 : 'text-[var(--muted)] hover:text-white'
             }`}
           >
-            Today's Plan
+            {t('train.segment_plan')}
           </button>
           <button
             onClick={() => setSegment('library')}
@@ -71,7 +71,7 @@ export const TrainScreen: React.FC = () => {
                 : 'text-[var(--muted)] hover:text-white'
             }`}
           >
-            Exercise Library ({INITIAL_EXERCISE_LIBRARY.length})
+            {t('train.segment_library')} ({INITIAL_EXERCISE_LIBRARY.length})
           </button>
         </div>
       </div>
@@ -83,14 +83,14 @@ export const TrainScreen: React.FC = () => {
             <div className="flex items-start justify-between">
               <div>
                 <span className="text-[11px] font-mono text-[var(--accent)] font-semibold uppercase">
-                  Session Blueprint
+                  {t('train.session_blueprint')}
                 </span>
                 <h3 className="text-xl font-black text-white mt-0.5">
-                  Upper Push (Unit A)
+                  {t('train.session_unit')}
                 </h3>
               </div>
               <span className="px-2 py-1 rounded text-xs font-mono font-bold bg-white/5 text-white border border-white/10">
-                38 min
+                {t('train.session_duration')}
               </span>
             </div>
 
@@ -114,7 +114,7 @@ export const TrainScreen: React.FC = () => {
                     <div>
                       <div className="font-bold text-sm text-white">{item.name}</div>
                       <div className="text-[11px] text-[var(--muted)] capitalize">
-                        {item.pattern.replace('_', ' ')} • Level {item.level}
+                        {item.pattern.replace('_', ' ')} • {t('train.level_label')} {item.level}
                       </div>
                     </div>
                   </div>
@@ -128,10 +128,10 @@ export const TrainScreen: React.FC = () => {
             <ClayButton
               variant="primary"
               accentColor="var(--accent)"
-              className="w-full mt-2 py-3.5 text-base font-black tracking-wide uppercase text-black"
+              className="w-full mt-2 py-3.5 text-base font-black tracking-wide text-black"
             >
               <Icon name="play" size={18} color="#08080c" />
-              <span>COMMENCE WORKOUT</span>
+              <span>{t('train.start_workout')}</span>
             </ClayButton>
           </ClayCard>
         </div>
@@ -145,7 +145,7 @@ export const TrainScreen: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search exercise by name..."
+              placeholder={t('train.search_placeholder')}
               className="bg-transparent text-sm text-white placeholder-[var(--muted)] outline-none w-full"
             />
             {searchQuery && (
@@ -175,14 +175,14 @@ export const TrainScreen: React.FC = () => {
                   }}
                   className="px-3 py-1.5 rounded-[var(--radius-chip)] text-xs font-semibold text-white border whitespace-nowrap cursor-pointer transition-motion active:scale-95 shrink-0"
                 >
-                  {p === 'all' ? 'All Patterns' : p.replace('_', ' ')}
+                  {p === 'all' ? t('train.all_patterns') : p.replace('_', ' ')}
                 </button>
               );
             })}
           </div>
 
           <SectionHeader
-            title={`Exercises (${filteredExercises.length})`}
+            title={`${t('train.exercises_header')} (${filteredExercises.length})`}
             className="mt-2"
           />
 
@@ -233,12 +233,12 @@ export const TrainScreen: React.FC = () => {
                         ? ex.equipment_requirement.all.join(', ')
                         : ex.equipment_requirement.any
                         ? ex.equipment_requirement.any.join('/')
-                        : 'bodyweight'}
+                        : t('train.bodyweight')}
                     </span>
                     {isLocked && (
                       <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-950/60 text-[var(--danger)] border border-rose-900/60 flex items-center gap-1">
                         <Icon name="lock" size={9} color="currentColor" />
-                        Locked
+                        {t('train.locked')}
                       </span>
                     )}
                   </div>

@@ -1,5 +1,10 @@
 import { MOCK_USER, type MockUserProfile } from '@hfos/sim';
 import { KeyValueStore, IndexedDbEventLog } from './storage/index.js';
+import {
+  loadAppearance,
+  applyAppearanceToDOM,
+  type AppearanceSettings,
+} from './appearance.js';
 
 export const KV_KEY_PROFILE = 'mock_athlete_profile';
 export const KV_KEY_ENV = 'mock_athlete_environment';
@@ -30,13 +35,19 @@ export const INITIAL_MOCK_ENV: MockEnvironmentState = {
 
 /**
  * Ensures the MockUser and environment items are initialized in IndexedDB kv store.
+ * Applies saved appearance settings before first paint to eliminate visual flash.
  */
 export async function bootstrapMockUser(): Promise<{
   profile: MockUserProfile;
   env: MockEnvironmentState;
   isFirstEverLaunch: boolean;
+  appearance: AppearanceSettings;
 }> {
   const kv = new KeyValueStore();
+
+  // Load and apply appearance settings to documentElement immediately
+  const appearance = await loadAppearance();
+  applyAppearanceToDOM(appearance);
 
   const hasLaunched = await kv.get<boolean>(KV_KEY_HAS_LAUNCHED);
   const isFirstEverLaunch = !hasLaunched;
@@ -57,7 +68,7 @@ export async function bootstrapMockUser(): Promise<{
     await kv.set(KV_KEY_HAS_LAUNCHED, true);
   }
 
-  return { profile, env, isFirstEverLaunch };
+  return { profile, env, isFirstEverLaunch, appearance };
 }
 
 /**

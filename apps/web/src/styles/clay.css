@@ -1,7 +1,8 @@
 /**
- * Dark Clay Recipes for Home Fitness OS (M1-A2)
+ * Dark Clay Recipes for Home Fitness OS (M1-A2 & M1-A3)
  *
  * Performance Rules:
+ * - Read shadow alphas, radius and spacing ONLY from CSS variables (--depth, --r-lg, etc.)
  * - Never animate box-shadow (swap classes on press, animate only transform/scale).
  * - No backdrop-filter, no filter: blur/drop-shadow.
  * - Maximum 6 elements with .clay per screen.
@@ -14,10 +15,10 @@
   background: linear-gradient(145deg, var(--clay-1), var(--clay-2));
   border-radius: var(--radius-clay);
   box-shadow:
-    8px 10px 22px rgba(0, 0, 0, 0.55),
-    -5px -5px 14px rgba(255, 255, 255, 0.03),
-    inset 2px 2px 3px rgba(255, 255, 255, 0.07),
-    inset -3px -4px 8px rgba(0, 0, 0, 0.45);
+    8px 10px 22px rgb(0 0 0 / calc(0.55 * var(--depth))),
+    -5px -5px 14px rgb(255 255 255 / calc(0.03 * var(--depth))),
+    inset 2px 2px 3px rgb(255 255 255 / calc(0.07 * var(--depth))),
+    inset -3px -4px 8px rgb(0 0 0 / calc(0.45 * var(--depth)));
   border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
@@ -26,17 +27,17 @@
   background: linear-gradient(145deg, var(--clay-1), var(--clay-2));
   border-radius: var(--radius-clay-sm);
   box-shadow:
-    4px 6px 12px rgba(0, 0, 0, 0.5),
-    inset 1px 1px 2px rgba(255, 255, 255, 0.06),
-    inset -2px -3px 5px rgba(0, 0, 0, 0.4);
+    4px 6px 12px rgb(0 0 0 / calc(0.5 * var(--depth))),
+    inset 1px 1px 2px rgb(255 255 255 / calc(0.06 * var(--depth))),
+    inset -2px -3px 5px rgb(0 0 0 / calc(0.4 * var(--depth)));
   border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 /* Clay Pressed (Depressed inset state) */
 .clay-pressed {
   box-shadow:
-    inset 4px 5px 10px rgba(0, 0, 0, 0.6),
-    inset -2px -2px 5px rgba(255, 255, 255, 0.04) !important;
+    inset 4px 5px 10px rgb(0 0 0 / calc(0.6 * var(--depth))),
+    inset -2px -2px 5px rgb(255 255 255 / calc(0.04 * var(--depth))) !important;
 }
 
 /* Clay Accent (Primary action button with variable --c) */
@@ -47,9 +48,9 @@
   font-weight: 700;
   border-radius: var(--radius-chip);
   box-shadow:
-    0 8px 18px color-mix(in srgb, var(--c) 35%, transparent),
-    inset 2px 2px 4px rgba(255, 255, 255, 0.35),
-    inset -3px -4px 8px rgba(0, 0, 0, 0.25);
+    0 8px 18px color-mix(in srgb, var(--c) calc(35% * var(--depth)), transparent),
+    inset 2px 2px 4px rgb(255 255 255 / calc(0.35 * var(--depth))),
+    inset -3px -4px 8px rgb(0 0 0 / calc(0.25 * var(--depth)));
   border: none;
 }
 

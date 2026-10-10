@@ -38,10 +38,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTrain }) => {
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold uppercase tracking-widest text-[var(--muted)]">
-              Welcome Athlete
+              {t('home.welcome_athlete')}
             </span>
             <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-950/80 text-amber-400 border border-amber-800/80">
-              MOCK
+              {t('common.mock_tag')}
             </span>
           </div>
           <h2 className="text-2xl font-black tracking-tight text-white mt-0.5">
@@ -50,23 +50,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTrain }) => {
         </div>
         <div className="clay-sm px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-[var(--accent)] font-mono border border-white/5">
           <Icon name="clock" size={13} color="var(--accent)" />
-          <span>Week 1</span>
+          <span>{t('home.week_1')}</span>
         </div>
       </div>
 
-      {/* 2. HERO Clay Card: Today - Upper Push (Unit A) (Card 1 of max 6 .clay) */}
+      {/* 2. HERO Clay Card: Today - Upper Push (Unit A) */}
       <ClayCard variant="hero" className="flex flex-col gap-4 border border-white/10">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-950/70 text-rose-300 border border-rose-800/60 flex items-center gap-1">
                 <Icon name="lock" size={10} color="currentColor" />
-                {t('home.stat_today')} (Day 0)
+                {t('home.today_day_0')}
               </span>
-              <span className="text-xs text-[var(--muted)] font-mono">38 min</span>
+              <span className="text-xs text-[var(--muted)] font-mono">{t('home.session_duration')}</span>
             </div>
             <h3 className="text-xl font-black text-white tracking-tight">
-              Upper Push (Unit A)
+              {t('home.session_title')}
             </h3>
           </div>
           <div className="w-10 h-10 rounded-full clay-sm flex items-center justify-center text-[var(--accent)] border border-white/10">
@@ -76,19 +76,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTrain }) => {
 
         {/* Exercises meta */}
         <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
-          <span className="font-semibold text-white">6 exercises</span>
+          <span className="font-semibold text-white">{t('home.exercises_count')}</span>
           <span>•</span>
-          <span>18 working sets</span>
+          <span>{t('home.working_sets')}</span>
           <span>•</span>
-          <span className="text-[var(--accent)] font-mono">RPE 7-8</span>
+          <span className="text-[var(--accent)] font-mono">{t('home.rpe_target')}</span>
         </div>
 
         {/* Muscle chips */}
         <div className="flex flex-wrap gap-1.5 pt-1">
-          <Chip pattern="horizontal_push" label="Chest" active />
-          <Chip pattern="vertical_push" label="Shoulders" active />
-          <Chip pattern="horizontal_push" label="Triceps" />
-          <Chip pattern="core" label="Core" />
+          <Chip pattern="horizontal_push" label={t('home.muscle_chest')} active />
+          <Chip pattern="vertical_push" label={t('home.muscle_shoulders')} active />
+          <Chip pattern="horizontal_push" label={t('home.muscle_triceps')} />
+          <Chip pattern="core" label={t('home.muscle_core')} />
         </div>
 
         {/* Big Lime START Button */}
@@ -96,16 +96,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTrain }) => {
           variant="primary"
           accentColor="var(--accent)"
           onClick={onNavigateTrain}
-          className="w-full mt-2 py-3.5 text-base font-black tracking-wide uppercase text-black"
+          className="w-full mt-2 py-3.5 text-base font-black tracking-wide text-black"
         >
           <Icon name="play" size={18} color="#08080c" />
-          <span>START WORKOUT</span>
+          <span>{t('home.start_workout')}</span>
         </ClayButton>
       </ClayCard>
 
       {/* 3. 7-Day Horizon Strip */}
       <div className="flex flex-col gap-2">
-        <SectionHeader title="7-Day Horizon" />
+        <SectionHeader title={t('home.horizon_title')} />
         <div className="flex gap-2.5 overflow-x-auto pb-2 pt-1 no-scrollbar px-1">
           {mockHorizonDays.map((day, idx) => (
             <DayChip
@@ -120,13 +120,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTrain }) => {
         </div>
       </div>
 
-      {/* 4. Bento Row: Consistency Ring & Readiness Gauge (Card 2 & 3 of max 6 .clay) */}
+      {/* 4. Bento Row: Consistency Ring & Readiness Gauge */}
       <div className="grid grid-cols-2 gap-3">
         {/* Weekly Consistency Ring */}
         <ClayCard variant="hero" className="p-4 flex flex-col justify-between gap-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
-              Consistency
+              {t('home.consistency_title')}
             </span>
             <Icon name="target" size={15} color="var(--accent)" />
           </div>
@@ -139,7 +139,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTrain }) => {
             </Ring>
           </div>
           <span className="text-[11px] text-center text-[var(--muted)] font-medium">
-            3 of 4 sessions done
+            {t('home.consistency_sub')}
           </span>
         </ClayCard>
 
@@ -147,7 +147,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTrain }) => {
         <ClayCard variant="hero" className="p-4 flex flex-col justify-between gap-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
-              Readiness
+              {t('home.readiness_title')}
             </span>
             <Icon name="bolt" size={15} color="var(--yellow)" />
           </div>
@@ -155,51 +155,51 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateTrain }) => {
             <div className="w-14 h-14 rounded-full border border-dashed border-white/20 flex items-center justify-center mb-1">
               <span className="text-xs text-[var(--muted)] font-mono">--</span>
             </div>
-            <span className="text-[11px] text-[var(--muted)]">No check-in yet</span>
+            <span className="text-[11px] text-[var(--muted)]">{t('home.no_checkin_yet')}</span>
           </div>
           <button className="clay-sm py-2 px-3 text-[11px] font-bold text-[var(--yellow)] hover:text-white transition-motion cursor-pointer active:scale-95 text-center">
-            + Check-in
+            + {t('home.add_checkin')}
           </button>
         </ClayCard>
       </div>
 
-      {/* 5. Muscle Exposure Card (Card 4 of max 6 .clay) */}
+      {/* 5. Muscle Exposure Card */}
       <ClayCard variant="hero" className="flex flex-col gap-3.5">
         <div className="flex items-center justify-between">
           <div>
             <h4 className="text-sm font-bold text-white uppercase tracking-wider">
-              Muscle Stimulus Exposure
+              {t('home.exposure_title')}
             </h4>
             <span className="text-[11px] text-[var(--muted)]">
-              Trailing 7-day volume • Collecting data
+              {t('home.exposure_desc')}
             </span>
           </div>
           <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-white/5 text-[var(--muted)] border border-white/5">
-            Estimate
+            {t('common.estimate')}
           </span>
         </div>
 
         <div className="flex flex-col gap-3 pt-1">
-          <Bar value={78} color="var(--coral)" label="Chest" sublabel="14 sets" />
-          <Bar value={65} color="var(--cyan)" label="Back" sublabel="11 sets" />
-          <Bar value={50} color="var(--orange)" label="Shoulders" sublabel="8 sets" />
-          <Bar value={60} color="var(--violet)" label="Quads" sublabel="10 sets" />
-          <Bar value={40} color="var(--pink)" label="Hamstrings" sublabel="6 sets" />
-          <Bar value={30} color="var(--yellow)" label="Core" sublabel="4 sets" />
+          <Bar value={78} color="var(--coral)" label={t('home.muscle_chest')} sublabel="14 sets" />
+          <Bar value={65} color="var(--cyan)" label={t('home.muscle_back')} sublabel="11 sets" />
+          <Bar value={50} color="var(--orange)" label={t('home.muscle_shoulders')} sublabel="8 sets" />
+          <Bar value={60} color="var(--violet)" label={t('home.muscle_quads')} sublabel="10 sets" />
+          <Bar value={40} color="var(--pink)" label={t('home.muscle_hamstrings')} sublabel="6 sets" />
+          <Bar value={30} color="var(--yellow)" label={t('home.muscle_core')} sublabel="4 sets" />
         </div>
       </ClayCard>
 
-      {/* 6. Coach Inbox Card (Card 5 of max 6 .clay) */}
+      {/* 6. Coach Inbox Card */}
       <ClayCard variant="hero" className="flex items-center gap-3.5 p-4">
         <div className="w-10 h-10 rounded-full clay-sm flex items-center justify-center text-[var(--muted)] shrink-0">
           <Icon name="shield" size={18} color="var(--muted)" />
         </div>
         <div className="flex-1">
           <h4 className="text-xs font-bold uppercase tracking-wider text-white">
-            Coach Inbox
+            {t('home.coach_inbox')}
           </h4>
           <p className="text-xs text-[var(--muted)] mt-0.5">
-            No suggestions yet. The engine is monitoring execution quality.
+            {t('home.coach_inbox_desc')}
           </p>
         </div>
       </ClayCard>

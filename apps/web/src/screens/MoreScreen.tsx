@@ -1,32 +1,41 @@
 import React, { useEffect, useState } from 'react';
-import { t, type Language } from '../i18n/index.js';
+import { t, type Language, type I18nKey } from '../i18n/index.js';
 import { KeyValueStore, isStoragePersisted, IndexedDbEventLog } from '../storage/index.js';
 import {
   resetMockData,
   KV_KEY_LANGUAGE,
   type MockEnvironmentState,
 } from '../bootstrap.js';
+import {
+  type AppearanceSettings,
+  saveAppearance,
+} from '../appearance.js';
 import { getEffectiveConfig } from '@hfos/config';
 import type { MockUserProfile } from '@hfos/sim';
 import { UpdateBanner } from '../components/UpdateBanner.js';
 import { ClayCard } from '../components/ClayCard.js';
 import { ClayButton } from '../components/ClayButton.js';
 import { Icon } from '../components/IconSet.js';
+import { AppearanceLab } from './AppearanceLab.js';
 
 interface MoreScreenProps {
   currentLang: Language;
   onLanguageChange: (lang: Language) => void;
   mockProfile: MockUserProfile | null;
   onProfileUpdated: () => void;
+  appearance: AppearanceSettings;
+  onAppearanceChange: (settings: AppearanceSettings) => void;
 }
 
-type MoreSubView = 'menu' | 'settings' | 'equipment' | 'data' | 'about';
+type MoreSubView = 'menu' | 'settings' | 'appearance' | 'equipment' | 'data' | 'about';
 
 export const MoreScreen: React.FC<MoreScreenProps> = ({
   currentLang,
   onLanguageChange,
   mockProfile,
   onProfileUpdated,
+  appearance,
+  onAppearanceChange,
 }) => {
   const [subView, setSubView] = useState<MoreSubView>('menu');
 
@@ -103,6 +112,11 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
     onLanguageChange(lang);
     const kv = new KeyValueStore();
     await kv.set(KV_KEY_LANGUAGE, lang);
+  };
+
+  const handleAppearanceUpdate = async (newSettings: AppearanceSettings) => {
+    onAppearanceChange(newSettings);
+    await saveAppearance(newSettings);
   };
 
   const handleExportJson = async () => {
@@ -191,7 +205,18 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
     );
   }
 
-  // 2. Equipment sub-view
+  // 2. Appearance Lab sub-view
+  if (subView === 'appearance') {
+    return (
+      <AppearanceLab
+        settings={appearance}
+        onChange={handleAppearanceUpdate}
+        onClose={() => setSubView('menu')}
+      />
+    );
+  }
+
+  // 3. Equipment sub-view
   if (subView === 'equipment') {
     return (
       <div className="flex flex-col gap-5 animate-screen-enter pb-10">
@@ -202,24 +227,24 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
           >
             ← {t('common.close')}
           </button>
-          <h2 className="text-xl font-black text-white">Equipment & Environment</h2>
+          <h2 className="text-xl font-black text-white">{t('equipment.title')}</h2>
         </div>
 
         <ClayCard variant="hero" className="flex flex-col gap-3">
           <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-            Declared Environment Items
+            {t('equipment.section_title')}
           </h3>
           <p className="text-xs text-[var(--muted)]">
-            Items require verification before compound exercise assignment.
+            {t('equipment.desc')}
           </p>
 
           <div className="flex flex-col gap-2 pt-2">
             {[
-              { id: 'floor', label: 'Clear Floor Area', status: 'validated' },
-              { id: 'wall', label: 'Solid Wall Space', status: 'validated' },
-              { id: 'door', label: 'Sturdy Interior Door', status: 'declared' },
-              { id: 'chair', label: 'Stable Chair / Bench', status: 'declared' },
-              { id: 'table', label: 'Heavy Table', status: 'unknown' },
+              { id: 'floor', labelKey: 'equipment.floor', status: 'validated' },
+              { id: 'wall', labelKey: 'equipment.wall', status: 'validated' },
+              { id: 'door', labelKey: 'equipment.door', status: 'declared' },
+              { id: 'chair', labelKey: 'equipment.chair', status: 'declared' },
+              { id: 'table', labelKey: 'equipment.table', status: 'unknown' },
             ].map((item) => (
               <div
                 key={item.id}
@@ -235,7 +260,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
                         : 'bg-white/20'
                     }`}
                   />
-                  <span className="font-bold text-sm text-white">{item.label}</span>
+                  <span className="font-bold text-sm text-white">{t(item.labelKey as I18nKey)}</span>
                 </div>
                 <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-white/5 text-[var(--muted)]">
                   {item.status}
@@ -248,7 +273,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
     );
   }
 
-  // 3. Data management sub-view
+  // 4. Data management sub-view
   if (subView === 'data') {
     return (
       <div className="flex flex-col gap-5 animate-screen-enter pb-10">
@@ -284,7 +309,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
             <span className="font-mono text-white">{mockProfile?.fitness_level ?? 'N/A'}</span>
 
             <span className="text-[var(--muted)]">{t('data.equipment')}:</span>
-            <span className="text-white">{mockProfile?.available_equipment.join(', ') || 'bodyweight'}</span>
+            <span className="text-white">{mockProfile?.available_equipment.join(', ') || t('train.bodyweight')}</span>
 
             <span className="text-[var(--muted)]">{t('data.priorities')}:</span>
             <span className="text-white">{mockProfile?.physique_priorities.join(', ') || 'chest, back'}</span>
@@ -340,7 +365,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
     );
   }
 
-  // 4. About & Diagnostics sub-view
+  // 5. About & Diagnostics sub-view
   if (subView === 'about') {
     return (
       <div className="flex flex-col gap-5 animate-screen-enter pb-10">
@@ -359,11 +384,11 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
 
         <ClayCard variant="hero" className="flex flex-col gap-3">
           <h3 className="text-sm font-bold text-[var(--accent)] uppercase tracking-wider mb-1">
-            System Diagnostics
+            {t('about.system_status')}
           </h3>
           <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-xs">
             <span className="text-[var(--muted)]">{t('about.version')}:</span>
-            <span className="font-mono font-medium text-white">0.1.0 (M1-A2 Dark Clay)</span>
+            <span className="font-mono font-medium text-white">0.1.0</span>
 
             <span className="text-[var(--muted)]">{t('about.commit')}:</span>
             <span className="font-mono text-neutral-300">
@@ -399,7 +424,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
     );
   }
 
-  // 5. Default Grouped Menu view
+  // 6. Default Grouped Menu view
   return (
     <div className="flex flex-col gap-5 animate-screen-enter pb-10">
       <div className="flex items-center justify-between px-1">
@@ -421,7 +446,23 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
             </div>
             <div>
               <div className="font-bold text-sm text-white">{t('more.item_settings')}</div>
-              <div className="text-xs text-[var(--muted)]">Language & display preferences</div>
+              <div className="text-xs text-[var(--muted)]">{t('more.item_settings_desc')}</div>
+            </div>
+          </div>
+          <span className="text-[var(--muted)] text-lg">›</span>
+        </button>
+
+        <button
+          onClick={() => setSubView('appearance')}
+          className="clay-sm p-4 w-full flex items-center justify-between text-left cursor-pointer transition-motion active:scale-98 border border-white/5"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[var(--accent)]">
+              <Icon name="flame" size={18} color="var(--accent)" />
+            </div>
+            <div>
+              <div className="font-bold text-sm text-white">{t('more.item_appearance')}</div>
+              <div className="text-xs text-[var(--muted)]">{t('more.item_appearance_desc')}</div>
             </div>
           </div>
           <span className="text-[var(--muted)] text-lg">›</span>
@@ -436,8 +477,8 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
               <Icon name="shield" size={18} color="var(--teal)" />
             </div>
             <div>
-              <div className="font-bold text-sm text-white">Equipment & Environment</div>
-              <div className="text-xs text-[var(--muted)]">Inspect home workout surfaces</div>
+              <div className="font-bold text-sm text-white">{t('more.item_equipment')}</div>
+              <div className="text-xs text-[var(--muted)]">{t('more.item_equipment_desc')}</div>
             </div>
           </div>
           <span className="text-[var(--muted)] text-lg">›</span>
@@ -453,7 +494,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
             </div>
             <div>
               <div className="font-bold text-sm text-white">{t('more.item_data')}</div>
-              <div className="text-xs text-[var(--muted)]">Export JSON & reset local storage</div>
+              <div className="text-xs text-[var(--muted)]">{t('more.item_data_desc')}</div>
             </div>
           </div>
           <span className="text-[var(--muted)] text-lg">›</span>
@@ -469,7 +510,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
             </div>
             <div>
               <div className="font-bold text-sm text-white">{t('more.item_about')}</div>
-              <div className="text-xs text-[var(--muted)]">Diagnostics & PWA update check</div>
+              <div className="text-xs text-[var(--muted)]">{t('more.item_about_desc')}</div>
             </div>
           </div>
           <span className="text-[var(--muted)] text-lg">›</span>
