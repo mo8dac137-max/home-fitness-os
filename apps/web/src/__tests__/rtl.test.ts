@@ -68,4 +68,12 @@ describe('RTL & Logical Properties Support (M1-A4)', () => {
     expect(content).toContain('transform: scaleX(-1)');
     expect(content).toContain('.content-scroll-area');
   });
+
+  it('fails if BottomNav indicator style lacks insetBlock and insetInlineStart', () => {
+    const bottomNavPath = path.resolve(__dirname, '../components/BottomNav.tsx');
+    const content = fs.readFileSync(bottomNavPath, 'utf-8');
+
+    expect(content).toContain('insetBlock: 0');
+    expect(content).toContain('insetInlineStart: 0');
+  });
 });

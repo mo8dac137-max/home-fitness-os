@@ -27,9 +27,10 @@ export const INITIAL_MOCK_ENV: MockEnvironmentState = {
   schema_version: 1,
   items: {
     floor: { item_id: 'floor', status: 'validated', updated_at: '2026-10-09T00:00:00.000Z' },
-    wall: { item_id: 'wall', status: 'validated', updated_at: '2026-10-09T00:00:00.000Z' },
+    wall: { item_id: 'wall', status: 'declared', updated_at: '2026-10-09T00:00:00.000Z' },
     door: { item_id: 'door', status: 'declared', updated_at: '2026-10-09T00:00:00.000Z' },
-    chair: { item_id: 'chair', status: 'declared', updated_at: '2026-10-09T00:00:00.000Z' },
+    chair: { item_id: 'chair', status: 'validated', updated_at: '2026-10-09T00:00:00.000Z' },
+    loaded_backpack: { item_id: 'loaded_backpack', status: 'validated', updated_at: '2026-10-09T00:00:00.000Z' },
   },
 };
 

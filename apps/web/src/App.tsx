@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import type { Plan } from '@hfos/contracts';
 import {
   type Language,
   getLanguage,
@@ -22,6 +23,7 @@ import { HomeScreen } from './screens/HomeScreen.js';
 import { TrainScreen } from './screens/TrainScreen.js';
 import { ProgressScreen } from './screens/ProgressScreen.js';
 import { MoreScreen } from './screens/MoreScreen.js';
+import { PlanService, type DayDecisionSummary } from './engine/planService.js';
 
 export default function App() {
   const [lang, setLang] = useState<Language>(getLanguage());
@@ -29,9 +31,25 @@ export default function App() {
   const [mockProfile, setMockProfile] = useState<MockUserProfile | null>(null);
   const [appearance, setAppearance] = useState<AppearanceSettings>(DEFAULT_APPEARANCE);
 
+  // Plan state
+  const [plan, setPlan] = useState<Plan | null>(null);
+  const [decisions, setDecisions] = useState<Record<number, DayDecisionSummary> | null>(null);
+  const [selectedTrainDayIndex, setSelectedTrainDayIndex] = useState<number>(0);
+
   const [showIntro, setShowIntro] = useState<boolean>(true);
   const [isFirstEver, setIsFirstEver] = useState<boolean>(false);
   const [isHydrated, setIsHydrated] = useState<boolean>(false);
+
+  const loadPlan = useCallback(async () => {
+    try {
+      const planService = new PlanService();
+      const result = await planService.getOrCreatePlan();
+      setPlan(result.plan);
+      setDecisions(result.decisions);
+    } catch {
+      // Fallback silently if storage unavailable
+    }
+  }, []);
 
   const initApp = useCallback(async () => {
     // 1. Storage persistence
@@ -53,14 +71,17 @@ export default function App() {
     setIsFirstEver(isFirstEverLaunch);
     setIsHydrated(true);
 
-    // 4. Launch intro timer (<= 2000ms for first ever, 600ms for subsequent cold launches)
+    // 4. Load or generate Plan in background (never blocks first paint)
+    loadPlan();
+
+    // 5. Launch intro timer (<= 2000ms for first ever, 600ms for subsequent cold launches)
     const timerDuration = isFirstEverLaunch ? 1800 : 600;
     const timer = setTimeout(() => {
       setShowIntro(false);
     }, timerDuration);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [loadPlan]);
 
   useEffect(() => {
     const unsubLang = subscribeLanguage((newLang) => {
@@ -78,6 +99,12 @@ export default function App() {
     const kv = new KeyValueStore();
     const profile = await kv.get<MockUserProfile>('mock_athlete_profile');
     if (profile) setMockProfile(profile);
+    loadPlan();
+  };
+
+  const handleNavigateTrainDay = (dayIndex: number) => {
+    setSelectedTrainDayIndex(dayIndex);
+    setActiveTab('train');
   };
 
   return (
@@ -96,9 +123,19 @@ export default function App() {
         style={{ opacity: isHydrated ? 1 : 0 }}
       >
         {activeTab === 'home' && (
-          <HomeScreen onNavigateTrain={() => setActiveTab('train')} />
+          <HomeScreen
+            plan={plan}
+            decisions={decisions}
+            onNavigateTrainDay={handleNavigateTrainDay}
+          />
         )}
-        {activeTab === 'train' && <TrainScreen />}
+        {activeTab === 'train' && (
+          <TrainScreen
+            plan={plan}
+            selectedDayIndex={selectedTrainDayIndex}
+            onSelectDayIndex={setSelectedTrainDayIndex}
+          />
+        )}
         {activeTab === 'progress' && <ProgressScreen />}
         {activeTab === 'more' && (
           <MoreScreen

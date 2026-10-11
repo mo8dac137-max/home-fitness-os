@@ -48,6 +48,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
   const [persisted, setPersisted] = useState<boolean>(false);
   const [eventCount, setEventCount] = useState<number>(0);
   const [configKeyCount, setConfigKeyCount] = useState<number>(0);
+  const [planGenDuration, setPlanGenDuration] = useState<number | null>(null);
 
   // Data reset confirmation
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -86,6 +87,8 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
       } catch {
         setConfigKeyCount(0);
       }
+
+      new KeyValueStore().get<number>('plan.last_gen_duration_ms').then(setPlanGenDuration);
 
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistration().then((reg) => {
@@ -418,6 +421,9 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
 
             <span className="text-[var(--muted)]">{t('about.config_keys')}:</span>
             <span className="font-mono text-white">{configKeyCount} keys</span>
+
+            <span className="text-[var(--muted)]">{t('about.plan_gen_time')}:</span>
+            <span className="font-mono text-[var(--accent)] font-bold ltr-num">{planGenDuration ?? '--'} ms</span>
           </div>
         </ClayCard>
       </div>

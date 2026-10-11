@@ -38,8 +38,12 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
           <div className="relative grid grid-cols-4 items-center">
             {/* Sliding active pill indicator anchored with logical properties */}
             <div
-              className="absolute inset-block-0 inset-inline-start-0 w-1/4 pointer-events-none transition-transform"
+              className="pointer-events-none transition-transform"
               style={{
+                position: 'absolute',
+                insetBlock: 0,
+                insetInlineStart: 0,
+                width: '25%',
                 transform: indicatorCssVarTransform(activeIndex),
                 transitionDuration: '180ms',
                 transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
