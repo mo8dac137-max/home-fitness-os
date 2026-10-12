@@ -205,6 +205,41 @@ export const ExerciseSchema = z.object({
 });
 export type Exercise = z.infer<typeof ExerciseSchema>;
 
+// Decision Record
+export const DecisionRecordSchema = z.object({
+  schema_version: z.number().int().positive(),
+  id: UuidV7Schema,
+  decision_class: z.string().min(1),
+  candidates: z.array(z.unknown()),
+  term_values: z.record(z.string(), z.number()),
+  filters: z.array(z.string()),
+  selection: z.unknown(),
+  created_at: z.string().datetime({ offset: true }),
+});
+export type DecisionRecord = z.infer<typeof DecisionRecordSchema>;
+
+// Day Reason Code
+export const DayReasonCodeEnum = z.enum([
+  'scheduled_main',
+  'no_window',
+  'window_too_short',
+  'quota_reached',
+  'consecutive_cap',
+  'recovery_spacing',
+  'micro_window',
+  'active_recovery_cap',
+]);
+export type DayReasonCode = z.infer<typeof DayReasonCodeEnum>;
+
+// Plan Revision Reason
+export const PlanRevisionReasonEnum = z.enum([
+  'schedule',
+  'readiness',
+  'prior_session',
+  'threshold',
+]);
+export type PlanRevisionReason = z.infer<typeof PlanRevisionReasonEnum>;
+
 // Plan Day
 export const PlanDaySchema = z.object({
   schema_version: z.number().int().positive(),
@@ -214,6 +249,11 @@ export const PlanDaySchema = z.object({
   session_snapshot: PrescriptionSnapshotSchema.nullable().optional(),
   status: z.enum(['locked', 'protected', 'adaptive']),
   notes: z.string().optional(),
+  unit: z.enum(['A', 'B', 'C', 'D']).optional(),
+  estimated_minutes: z.number().nonnegative().optional(),
+  reason_code: DayReasonCodeEnum.optional(),
+  decision: DecisionRecordSchema.optional(),
+  revision_reason: PlanRevisionReasonEnum.optional(),
 });
 export type PlanDay = z.infer<typeof PlanDaySchema>;
 
@@ -226,6 +266,7 @@ export const PlanSchema = z
     days: z.array(PlanDaySchema),
     horizon_days: z.number().int().min(3).max(8).default(7),
     current_unit: z.enum(['A', 'B', 'C', 'D']).optional(),
+    inputs_defaulted: z.array(z.string()).optional(),
   })
   .superRefine((data, ctx) => {
     if (data.days.length !== data.horizon_days) {
@@ -297,19 +338,6 @@ export const InformationNeedSchema = z.object({
   created_at: z.string().datetime({ offset: true }),
 });
 export type InformationNeed = z.infer<typeof InformationNeedSchema>;
-
-// Decision Record
-export const DecisionRecordSchema = z.object({
-  schema_version: z.number().int().positive(),
-  id: UuidV7Schema,
-  decision_class: z.string().min(1),
-  candidates: z.array(z.unknown()),
-  term_values: z.record(z.string(), z.number()),
-  filters: z.array(z.string()),
-  selection: z.unknown(),
-  created_at: z.string().datetime({ offset: true }),
-});
-export type DecisionRecord = z.infer<typeof DecisionRecordSchema>;
 
 // Setting Definition
 export const SettingDefinitionSchema = z.object({

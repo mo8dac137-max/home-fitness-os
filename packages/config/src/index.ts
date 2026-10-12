@@ -615,6 +615,17 @@ export const DEFAULT_SETTINGS: SettingDefinition[] = [
     version: '1.0.0',
     description: 'Milliseconds per standard day constant',
   },
+  {
+    schema_version: 1,
+    key: 'milliseconds_per_hour',
+    type: 'number',
+    default: 3600000,
+    bounds: { min: 3600000, max: 3600000 },
+    scope: 'safety_locked',
+    consumer: 'time_math',
+    version: '1.0.0',
+    description: 'Milliseconds per standard hour constant',
+  },
   // Batch 3 (M0-12 Knowledge & Freshness)
   {
     schema_version: 1,
@@ -787,6 +798,109 @@ export const DEFAULT_SETTINGS: SettingDefinition[] = [
     version: '1.0.0',
     description: 'Maximum character length of AI message drafts',
   },
+  // Milestone 1-B E1a (Engine Honesty & Real Provenance)
+  {
+    schema_version: 1,
+    key: 'stimulus_gap_no_history',
+    type: 'number',
+    default: 1.0,
+    bounds: { min: 0, max: 1 },
+    scope: 'user',
+    consumer: 'ranking_engine',
+    version: '1.0.0',
+    description: 'Default stimulus gap score when no training history exists (0..1)',
+  },
+  {
+    schema_version: 1,
+    key: 'progression_need_default',
+    type: 'number',
+    default: 0.5,
+    bounds: { min: 0, max: 1 },
+    scope: 'user',
+    consumer: 'ranking_engine',
+    version: '1.0.0',
+    description: 'Default progression need score when no review outcome data exists (0..1)',
+  },
+  {
+    schema_version: 1,
+    key: 'readiness_default',
+    type: 'number',
+    default: 0.8,
+    bounds: { min: 0, max: 1 },
+    scope: 'user',
+    consumer: 'ranking_engine',
+    version: '1.0.0',
+    description: 'Default readiness score when no check-in score recorded (0..1)',
+  },
+  {
+    schema_version: 1,
+    key: 'preferred_session_minutes',
+    type: 'number',
+    default: 45,
+    bounds: { min: 15, max: 120 },
+    scope: 'user',
+    consumer: 'ranking_engine',
+    version: '1.0.0',
+    description: 'Preferred target session duration in minutes for schedule fit normalization',
+  },
+  {
+    schema_version: 1,
+    key: 'min_eligible_patterns_per_unit',
+    type: 'number',
+    default: 2,
+    bounds: { min: 1, max: 5 },
+    scope: 'safety_locked',
+    consumer: 'ranking_engine',
+    version: '1.0.0',
+    description: 'Minimum number of patterns with eligible equipment required for unit to be eligible',
+  },
+  {
+    schema_version: 1,
+    key: 'progression_score_progress',
+    type: 'number',
+    default: 1.0,
+    bounds: { min: 0, max: 1 },
+    scope: 'user',
+    consumer: 'ranking_engine',
+    version: '1.0.0',
+    description: 'Progression need score for progress outcome (0..1)',
+  },
+  {
+    schema_version: 1,
+    key: 'progression_score_maintain',
+    type: 'number',
+    default: 0.5,
+    bounds: { min: 0, max: 1 },
+    scope: 'user',
+    consumer: 'ranking_engine',
+    version: '1.0.0',
+    description: 'Progression need score for maintain outcome (0..1)',
+  },
+  {
+    schema_version: 1,
+    key: 'progression_score_regress',
+    type: 'number',
+    default: 0.2,
+    bounds: { min: 0, max: 1 },
+    scope: 'user',
+    consumer: 'ranking_engine',
+    version: '1.0.0',
+    description: 'Progression need score for regress or deload outcome (0..1)',
+  },
+  {
+    schema_version: 1,
+    key: 'unit_goal_weights',
+    type: 'object',
+    default: {
+      strength: { A: 1.0, B: 0.9, C: 0.9, D: 0.8 },
+      hypertrophy: { A: 0.9, B: 0.9, C: 1.0, D: 0.8 },
+      endurance: { A: 0.8, B: 0.8, C: 0.8, D: 1.0 },
+    },
+    scope: 'user',
+    consumer: 'ranking_engine',
+    version: '1.0.0',
+    description: 'Goal emphasis weight table per training unit (strength/hypertrophy/endurance)',
+  },
 ];
 
 class SettingsRegistry {
@@ -877,6 +991,10 @@ class SettingsRegistry {
     } else if (def.type === 'array') {
       if (!Array.isArray(value)) {
         return { valid: false, error: `Setting "${key}" expects an array, received ${actualType}.` };
+      }
+    } else if (def.type === 'object') {
+      if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+        return { valid: false, error: `Setting "${key}" expects an object, received ${actualType}.` };
       }
     }
 
@@ -995,6 +1113,17 @@ export function requireArray<T = unknown>(config: EffectiveConfig, key: string):
     throw new Error(`Configuration key "${key}" must be an array, received: ${typeof val}`);
   }
   return val as T[];
+}
+
+export function requireObject<T = Record<string, unknown>>(config: EffectiveConfig, key: string): T {
+  if (!(key in config)) {
+    throw new Error(`Missing required configuration key: "${key}"`);
+  }
+  const val = config[key];
+  if (typeof val !== 'object' || val === null || Array.isArray(val)) {
+    throw new Error(`Configuration key "${key}" must be an object, received: ${typeof val}`);
+  }
+  return val as T;
 }
 
 export function getEffectiveConfig(
