@@ -10,6 +10,7 @@ import {
   requireNumber,
   requireRange,
   requireArray,
+  requireBoolean,
 } from '../index.js';
 import type { SettingDefinition } from '@hfos/contracts';
 
@@ -191,6 +192,24 @@ describe('@hfos/config', () => {
       expect(config['autonomy_rest_default']).toBe('ask');
       expect(config['autonomy_muscle_target']).toBe('ask');
       expect(config['ai_message_draft_max_length']).toBe(280);
+    });
+
+    it('seeds Phase 2A session runner settings correctly', () => {
+      const config = getEffectiveConfig();
+      expect(config['warmup_sets_default']).toBe(1);
+      expect(config['cooldown_duration_minutes']).toBe(5);
+      expect(config['rest_floor_seconds']).toBe(30);
+      expect(config['rest_ceiling_seconds']).toBe(180);
+      expect(config['target_rpe_default']).toBe(7.5);
+      expect(config['rest_dynamic']).toBe(true);
+    });
+
+    it('validates requireBoolean helper', () => {
+      const testConfig = { is_active: true, is_flag: false, not_bool: 'yes' };
+      expect(requireBoolean(testConfig, 'is_active')).toBe(true);
+      expect(requireBoolean(testConfig, 'is_flag')).toBe(false);
+      expect(() => requireBoolean(testConfig, 'missing_key')).toThrow(/Missing required configuration key/);
+      expect(() => requireBoolean(testConfig, 'not_bool')).toThrow(/must be a boolean/);
     });
   });
 });

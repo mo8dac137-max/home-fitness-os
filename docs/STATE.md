@@ -20,7 +20,8 @@ apps/web/
     │   ├── appearance.test.ts (125 lines)
     │   ├── i18n-compliance.test.ts (120 lines)
     │   ├── planService.test.ts (163 lines)
-    │   └── rtl.test.ts (80 lines)
+    │   ├── rtl.test.ts (80 lines)
+    │   └── sessionRunner.test.ts (330 lines)
     ├── components/
     │   ├── Bar.tsx (54 lines)
     │   ├── BottomNav.tsx (86 lines)
@@ -38,7 +39,8 @@ apps/web/
     │   └── UpdateBanner.tsx (63 lines)
     ├── engine/
     │   ├── engineContext.ts (86 lines)
-    │   └── planService.ts (250 lines)
+    │   ├── planService.ts (250 lines)
+    │   └── sessionRunner.ts (450 lines)
     ├── i18n/
     │   └── index.ts (346 lines)
     ├── screens/
@@ -58,8 +60,12 @@ apps/web/
         └── tokens.css (93 lines)
 
 packages/
-├── config/src/index.ts (1159 lines)
-├── contracts/src/index.ts (422 lines)
+├── config/src/
+│   ├── index.ts (1228 lines)
+│   └── __tests__/config.test.ts (215 lines)
+├── contracts/src/
+│   ├── index.ts (422 lines)
+│   └── __tests__/contracts.test.ts (205 lines)
 ├── engine-core/src/
 │   ├── ai-contract.ts (227 lines)
 │   ├── environment.ts (222 lines)
@@ -77,10 +83,18 @@ packages/
 │       ├── engine-honesty-e1a.test.ts (350 lines)
 │       ├── numeric-literals-guard.test.ts (121 lines)
 │       └── smoke.test.ts (12 lines)
-├── events/src/index.ts (431 lines)
-├── library/src/index.ts (1039 lines)
-├── ports/src/index.ts (75 lines)
-└── sim/src/index.ts (90 lines)
+├── events/src/
+│   ├── index.ts (431 lines)
+│   └── __tests__/events.test.ts (180 lines)
+├── library/src/
+│   ├── index.ts (1039 lines)
+│   └── __tests__/library.test.ts (120 lines)
+├── ports/src/
+│   ├── index.ts (75 lines)
+│   └── __tests__/smoke.test.ts (15 lines)
+└── sim/src/
+    ├── index.ts (90 lines)
+    └── __tests__/simulation.test.ts (85 lines)
 ```
 
 ---
@@ -89,8 +103,8 @@ packages/
 
 ### Packages
 - **`@hfos/contracts`**: Zod schemas & types for UUIDv7, events, movements, exercises, units, sessions, athlete states.
-- **`@hfos/config`**: `getEffectiveConfig`, `validateSettingValue`, `DEFAULT_SETTINGS` (versioned settings dictionary).
-- **`@hfos/events`**: `EventLog` interface, event type guards, schemas, event factory helpers.
+- **`@hfos/config`**: `getEffectiveConfig`, `requireNumber`, `requireBoolean`, `requireRange`, `requireArray`, `requireObject`, `validateSettingValue`, `DEFAULT_SETTINGS`.
+- **`@hfos/events`**: `EventLog` interface, event type guards, schemas, event factory helpers, `reduce`, `replay`.
 - **`@hfos/library`**: `INITIAL_EXERCISE_LIBRARY`, progression links, equipment requirements.
 - **`@hfos/ports`**: Storage, analytics, clock, id-generator, schedule-provider, and service port interfaces.
 - **`@hfos/sim`**: `MOCK_USER`, simulation athlete generator, deterministic mock runners.
@@ -101,40 +115,40 @@ packages/
 - **`HomeScreen`**: 7-day horizon strip, Day 0 locked hero workout card, consistency ring, and "Why this session?" rationale sheet.
 - **`TrainScreen`**: Segmented control switching between active 7-day plan blueprint with day inspector and searchable exercise library.
 - **`ProgressScreen`**: Mastery score ring, rep target mastery, RPE effort tracking, and movement exposure window.
-- **`MoreScreen`**: Grouped navigation for Settings, Appearance Lab, Equipment, Data, and System Diagnostics (including plan generation latency).
+- **`MoreScreen`**: Grouped navigation for Settings, Appearance Lab, Equipment, Data, and System Diagnostics.
 - **`AppearanceLab`**: Live preview with controls for accent presets, clay depth, corner radius, density, and haptics.
 - **`PlanService`**: Manages `getOrCreatePlan`, horizon sliding, day decision summaries, generation benchmarking, and event logging.
+- **`sessionRunner`**: Session runner state, `sessionReducer`, event emission (`session.started`, `session.set_logged`, `session.completed`, `session.abandoned`), dynamic rest computation, in-flight persistence.
 
 ---
 
-## 3. Files Changed in this Task (Phase 1)
-- `package.json` (added `"license": "MIT"`).
-- `LICENSE` (added MIT License copyright 2026 mo8dac137-max).
-- `public/_headers` (extended with security headers: nosniff, DENY, strict-origin-when-cross-origin, Permissions-Policy, strict CSP; kept cache rules).
-- `README.md` (added License badge, Install as PWA guide with offline guarantees, empty Screenshots section).
-- `docs/REPORT_PHASE1.md` (completion report for Phase 1).
+## 3. Files Changed in this Task (Phase 2A)
+- `apps/web/src/engine/sessionRunner.ts` (session runner core logic, pure reducer, event generator, persistence).
+- `apps/web/src/__tests__/sessionRunner.test.ts` (unit tests with fake clock, warmup/cooldown, rest auto-advance, reload, abandon, pain).
+- `packages/config/src/index.ts` (added `requireBoolean` accessor; added `warmup_sets_default`, `cooldown_duration_minutes`, `rest_floor_seconds`, `rest_ceiling_seconds`, `target_rpe_default`).
+- `packages/config/src/__tests__/config.test.ts` (added tests for Phase 2A settings and `requireBoolean`).
+- `docs/REPORT_PHASE2A.md` (completion report for Phase 2A).
 - `docs/STATE.md` (updated project state map, test totals, and file tree).
 
 ---
 
 ## 4. Test Counts per Package
 
-Total: **18 test files, 147 tests passing**.
+Total: **19 test files, 155 tests passing**.
 - `packages/engine-core`: 71 tests (engine-core: 59, engine-honesty-e1a: 9, engine-guard: 1, numeric-literals: 1, smoke: 1)
 - `packages/contracts`: 21 tests
-- `packages/config`: 12 tests
+- `packages/config`: 14 tests
 - `packages/events`: 7 tests
 - `packages/library`: 9 tests (library: 7, smoke: 2)
 - `packages/sim`: 4 tests (simulation: 1, smoke: 3)
 - `packages/ports`: 1 test
-- `apps/web`: 22 tests (planService: 6, storage: 4, appearance: 5, rtl: 6, i18n-compliance: 1)
+- `apps/web`: 28 tests (sessionRunner: 6, planService: 6, storage: 4, appearance: 5, rtl: 6, i18n-compliance: 1)
 
 ---
 
 ## 5. Known Issues and TODOs
-- **Phase 2A (Next)**: Session Runner core logic (`apps/web/src/engine/sessionRunner.ts`) — pure reducer, timer state, injected clock/id-generator, append-only event emission, reload hydration.
-- **Phase 2B**: WorkoutRunnerScreen (UI) with big touch targets for Redmi 12, countdown ring, RPE logging, Arabic translations.
-- **Phase 2C**: Runner hardening, reload mid-rest, event idempotency.
+- **Phase 2B (Next)**: `WorkoutRunnerScreen.tsx` UI — connected to Day-0 card, clay design system, Redmi 12 / 360dp touch targets, countdown ring, RPE picker, pain toggle, haptics & wake lock integration, i18n keys (en + real Arabic).
+- **Phase 2C**: Runner hardening, mid-rest reload recovery in UI, idempotency, ProgressScreen & HomeScreen history wiring.
 - **Phase 3**: Complete Arabic (100% dictionary coverage) + RTL audit.
 - **Phase 4**: Supabase sync (Gated).
 

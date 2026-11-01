@@ -901,6 +901,62 @@ export const DEFAULT_SETTINGS: SettingDefinition[] = [
     version: '1.0.0',
     description: 'Goal emphasis weight table per training unit (strength/hypertrophy/endurance)',
   },
+  // Phase 2A Session Runner Settings
+  {
+    schema_version: 1,
+    key: 'warmup_sets_default',
+    type: 'number',
+    default: 1,
+    bounds: { min: 0, max: 3 },
+    scope: 'user',
+    consumer: 'session_runner',
+    version: '1.0.0',
+    description: 'Number of warmup sets preceding working sets of the first exercise (0-3)',
+  },
+  {
+    schema_version: 1,
+    key: 'cooldown_duration_minutes',
+    type: 'number',
+    default: 5,
+    bounds: { min: 1, max: 15 },
+    scope: 'user',
+    consumer: 'session_runner',
+    version: '1.0.0',
+    description: 'Cooldown duration in minutes at the end of a session (1-15)',
+  },
+  {
+    schema_version: 1,
+    key: 'rest_floor_seconds',
+    type: 'number',
+    default: 30,
+    bounds: { min: 15, max: 60 },
+    scope: 'user',
+    consumer: 'session_runner',
+    version: '1.0.0',
+    description: 'Minimum rest duration floor in seconds (15-60)',
+  },
+  {
+    schema_version: 1,
+    key: 'rest_ceiling_seconds',
+    type: 'number',
+    default: 180,
+    bounds: { min: 60, max: 300 },
+    scope: 'user',
+    consumer: 'session_runner',
+    version: '1.0.0',
+    description: 'Maximum rest duration ceiling in seconds (60-300)',
+  },
+  {
+    schema_version: 1,
+    key: 'target_rpe_default',
+    type: 'number',
+    default: 7.5,
+    bounds: { min: 6.0, max: 9.5 },
+    scope: 'user',
+    consumer: 'session_runner',
+    version: '1.0.0',
+    description: 'Default target RPE for working sets (6.0-9.5)',
+  },
 ];
 
 class SettingsRegistry {
@@ -1066,6 +1122,19 @@ export function requireNumber(config: EffectiveConfig, key: string): number {
   if (typeof val !== 'number' || !Number.isFinite(val)) {
     throw new Error(
       `Configuration key "${key}" must be a finite number, received: ${typeof val} (${String(val)})`
+    );
+  }
+  return val;
+}
+
+export function requireBoolean(config: EffectiveConfig, key: string): boolean {
+  if (!(key in config)) {
+    throw new Error(`Missing required configuration key: "${key}"`);
+  }
+  const val = config[key];
+  if (typeof val !== 'boolean') {
+    throw new Error(
+      `Configuration key "${key}" must be a boolean, received: ${typeof val} (${String(val)})`
     );
   }
   return val;
