@@ -198,15 +198,12 @@ export function buildHorizon(
   const mainMin = requireNumber(config, 'main_sessions_min');
   const mainMax = requireNumber(config, 'main_sessions_max');
   const maxConsecutiveMain = requireNumber(config, 'max_consecutive_main_days');
-  const targetStimulusInterval = requireNumber(config, 'target_stimulus_interval_days');
   const msPerDay = requireNumber(config, 'milliseconds_per_day');
   const msPerHour = requireNumber(config, 'milliseconds_per_hour');
   const minHoursSpacing = requireNumber(config, 'min_hours_between_hard_same_pattern');
   const minEligiblePatterns = requireNumber(config, 'min_eligible_patterns_per_unit');
-  const stimulusGapNoHistory = requireNumber(config, 'stimulus_gap_no_history');
   const progressionNeedDefault = requireNumber(config, 'progression_need_default');
   const readinessDefault = requireNumber(config, 'readiness_default');
-  const preferredSessionMinutes = requireNumber(config, 'preferred_session_minutes');
   const unitGoalWeights = requireObject<Record<string, Record<string, number>>>(
     config,
     'unit_goal_weights'
@@ -296,8 +293,8 @@ export function buildHorizon(
           input.eligible_exercises.find((e) => patterns.includes(e.pattern)) ??
           input.eligible_exercises[0]!;
 
-        // 2. stimulus_gap
-        let stimulus_gap = stimulusGapNoHistory;
+        // 2. days_since_last_stimulus (normalized stimulus_gap and schedule_fit
+        // are derived by rankCandidates from these raw term inputs)
         let daysSinceForTerms = 0;
         const timestamps = patterns
           .map((p) => rollingLastStimulus[p])
@@ -306,7 +303,6 @@ export function buildHorizon(
         if (timestamps.length > 0) {
           const mostRecentStimulusMs = Math.max(...timestamps.map((t) => Date.parse(t)));
           const daysSince = Math.max(0, (dayDateMs - mostRecentStimulusMs) / msPerDay);
-          stimulus_gap = Math.min(1, Math.max(0, daysSince / targetStimulusInterval));
           daysSinceForTerms = daysSince;
         } else if (!trainingState?.last_stimulus_at_by_pattern) {
           inputsDefaultedSet.add('history');
@@ -358,11 +354,8 @@ export function buildHorizon(
         const goalEmphasis = input.goal_emphasis ?? 'strength';
         const goal_weight = unitGoalWeights[goalEmphasis]?.[u] ?? 1.0;
 
-        // 6. schedule_fit
-        const schedule_fit = Math.min(
-          1,
-          Math.max(0, availableMinutes / preferredSessionMinutes)
-        );
+        // 6. schedule_fit is derived by rankCandidates from
+        //    available_window_minutes / duration_minutes term inputs.
 
         // 7. readiness
         let readiness = readinessDefault;
