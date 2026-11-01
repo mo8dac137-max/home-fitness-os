@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getEffectiveConfig } from '@hfos/config';
-import { PlanSchema, type Plan, type DayReasonCode, type MuscleGroup } from '@hfos/contracts';
+import { PlanSchema, type DayReasonCode, type MuscleGroup } from '@hfos/contracts';
 import { INITIAL_EXERCISE_LIBRARY } from '@hfos/library';
 import { LocalScheduleProvider } from '@hfos/ports';
 import {
@@ -17,11 +17,11 @@ describe('E1a: Engine Honesty (buildHorizon real terms, real filters, real prove
   const config = getEffectiveConfig();
 
   const env: Record<string, EnvironmentItem> = {
-    floor: { schema_version: 1, item_id: 'floor', status: 'validated', updated_at: '2026-10-01T00:00:00Z' },
-    wall: { schema_version: 1, item_id: 'wall', status: 'validated', updated_at: '2026-10-01T00:00:00Z' },
-    pullup_bar: { schema_version: 1, item_id: 'pullup_bar', status: 'validated', updated_at: '2026-10-01T00:00:00Z' },
-    chair: { schema_version: 1, item_id: 'chair', status: 'validated', updated_at: '2026-10-01T00:00:00Z' },
-    backpack: { schema_version: 1, item_id: 'backpack', status: 'validated', updated_at: '2026-10-01T00:00:00Z' },
+    floor: { item_id: 'floor', status: 'validated', updated_at: '2026-10-01T00:00:00Z' },
+    wall: { item_id: 'wall', status: 'validated', updated_at: '2026-10-01T00:00:00Z' },
+    pullup_bar: { item_id: 'pullup_bar', status: 'validated', updated_at: '2026-10-01T00:00:00Z' },
+    chair: { item_id: 'chair', status: 'validated', updated_at: '2026-10-01T00:00:00Z' },
+    backpack: { item_id: 'backpack', status: 'validated', updated_at: '2026-10-01T00:00:00Z' },
   };
 
   const eligibleExercises = INITIAL_EXERCISE_LIBRARY.filter((e) => isEligible(e, env).eligible);
@@ -116,8 +116,8 @@ describe('E1a: Engine Honesty (buildHorizon real terms, real filters, real prove
   it('3. an ineligible-equipment unit is filtered and the reason is recorded', () => {
     // Strip all pulling equipment (no pullup bar, no chair, no backpack)
     const floorOnlyEnv: Record<string, EnvironmentItem> = {
-      floor: { schema_version: 1, item_id: 'floor', status: 'validated', updated_at: '2026-10-01T00:00:00Z' },
-      wall: { schema_version: 1, item_id: 'wall', status: 'validated', updated_at: '2026-10-01T00:00:00Z' },
+      floor: { item_id: 'floor', status: 'validated', updated_at: '2026-10-01T00:00:00Z' },
+      wall: { item_id: 'wall', status: 'validated', updated_at: '2026-10-01T00:00:00Z' },
     };
     const limitedEligible = INITIAL_EXERCISE_LIBRARY.filter((e) => isEligible(e, floorOnlyEnv).eligible);
 
@@ -198,13 +198,13 @@ describe('E1a: Engine Honesty (buildHorizon real terms, real filters, real prove
     // Day 5: 60m
     // Day 6: 60m
     const customWindows = [
-      { date: '2026-10-05', duration_minutes: 60, window_type: 'custom' as const },
-      { date: '2026-10-06', duration_minutes: 60, window_type: 'custom' as const },
-      { date: '2026-10-07', duration_minutes: 60, window_type: 'custom' as const },
-      { date: '2026-10-08', duration_minutes: 20, window_type: 'custom' as const },
-      { date: '2026-10-09', duration_minutes: 0, window_type: 'custom' as const },
-      { date: '2026-10-10', duration_minutes: 60, window_type: 'custom' as const },
-      { date: '2026-10-11', duration_minutes: 60, window_type: 'custom' as const },
+      { date: '2026-10-05', start: '18:00', end: '19:00', duration_minutes: 60, source: 'test' },
+      { date: '2026-10-06', start: '18:00', end: '19:00', duration_minutes: 60, source: 'test' },
+      { date: '2026-10-07', start: '18:00', end: '19:00', duration_minutes: 60, source: 'test' },
+      { date: '2026-10-08', start: '18:00', end: '18:20', duration_minutes: 20, source: 'test' },
+      { date: '2026-10-09', start: '18:00', end: '18:00', duration_minutes: 0, source: 'test' },
+      { date: '2026-10-10', start: '18:00', end: '19:00', duration_minutes: 60, source: 'test' },
+      { date: '2026-10-11', start: '18:00', end: '19:00', duration_minutes: 60, source: 'test' },
     ];
 
     const plan = buildHorizon(
@@ -301,11 +301,11 @@ describe('E1a: Engine Honesty (buildHorizon real terms, real filters, real prove
     const now = '2026-10-05T12:00:00Z';
     const events = [
       {
+        event_id: '018f6c38-89c0-7b56-8a5b-9d48b1bfb91d',
         schema_version: 1,
-        id: '018f6c38-89c0-7b56-8a5b-9d48b1bfb91d',
-        stream_id: 'athlete-1',
-        sequence: 1,
         type: 'session.completed',
+        device_id: 'test-device',
+        idempotency_key: 'idem-session-completed-1',
         payload: {
           training_unit: 'A',
           patterns: ['horizontal_push', 'vertical_push', 'core'],
@@ -313,22 +313,22 @@ describe('E1a: Engine Honesty (buildHorizon real terms, real filters, real prove
         occurred_at: '2026-10-04T18:00:00Z',
       },
       {
+        event_id: '018f6c38-89c0-7b56-8a5b-9d48b1bfb91e',
         schema_version: 1,
-        id: '018f6c38-89c0-7b56-8a5b-9d48b1bfb91e',
-        stream_id: 'athlete-1',
-        sequence: 2,
         type: 'readiness.recorded',
+        device_id: 'test-device',
+        idempotency_key: 'idem-readiness-1',
         payload: {
           score: 0.9,
         },
         occurred_at: '2026-10-05T07:00:00Z',
       },
       {
+        event_id: '018f6c38-89c0-7b56-8a5b-9d48b1bfb91f',
         schema_version: 1,
-        id: '018f6c38-89c0-7b56-8a5b-9d48b1bfb91f',
-        stream_id: 'athlete-1',
-        sequence: 3,
         type: 'session.set_logged',
+        device_id: 'test-device',
+        idempotency_key: 'idem-set-1',
         payload: {
           muscle: 'chest' as MuscleGroup,
           pattern: 'horizontal_push',
