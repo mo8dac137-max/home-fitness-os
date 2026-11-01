@@ -58,19 +58,25 @@ apps/web/
         └── tokens.css (93 lines)
 
 packages/
-├── config/src/index.ts (1030 lines)
-├── contracts/src/index.ts (394 lines)
+├── config/src/index.ts (1159 lines)
+├── contracts/src/index.ts (422 lines)
 ├── engine-core/src/
 │   ├── ai-contract.ts (227 lines)
 │   ├── environment.ts (222 lines)
 │   ├── exposure.ts (140 lines)
-│   ├── horizon.ts (505 lines)
+│   ├── horizon.ts (840 lines)
 │   ├── index.ts (26 lines)
 │   ├── knowledge.ts (192 lines)
 │   ├── progression.ts (304 lines)
-│   ├── ranking.ts (270 lines)
+│   ├── ranking.ts (278 lines)
 │   ├── session.ts (320 lines)
-│   └── validator.ts (403 lines)
+│   ├── validator.ts (403 lines)
+│   └── __tests__/
+│       ├── engine-core.test.ts (1422 lines)
+│       ├── engine-guard.test.ts (28 lines)
+│       ├── engine-honesty-e1a.test.ts (350 lines)
+│       ├── numeric-literals-guard.test.ts (121 lines)
+│       └── smoke.test.ts (12 lines)
 ├── events/src/index.ts (431 lines)
 ├── library/src/index.ts (1039 lines)
 ├── ports/src/index.ts (75 lines)
@@ -88,7 +94,7 @@ packages/
 - **`@hfos/library`**: `INITIAL_EXERCISE_LIBRARY`, progression links, equipment requirements.
 - **`@hfos/ports`**: Storage, analytics, clock, id-generator, schedule-provider, and service port interfaces.
 - **`@hfos/sim`**: `MOCK_USER`, simulation athlete generator, deterministic mock runners.
-- **`@hfos/engine-core`**: Deterministic pure-TS training engine: `generateHorizon`, `buildHorizon`, `slideHorizon`, `buildSession`, `evaluateProgression`, `validateWorkoutPlan`, `rankExerciseCandidates`.
+- **`@hfos/engine-core`**: Deterministic pure-TS training engine: `buildHorizon`, `slideHorizon`, `deriveTrainingState`, `generateSession`, `evaluateProgression`, `validateWorkoutPlan`, `rankCandidates`.
 
 ### Web App (`apps/web`)
 - **`App`**: Root orchestrator managing navigation, splash launch, engine plan bootstrap, and IndexedDB hydration.
@@ -98,31 +104,23 @@ packages/
 - **`MoreScreen`**: Grouped navigation for Settings, Appearance Lab, Equipment, Data, and System Diagnostics (including plan generation latency).
 - **`AppearanceLab`**: Live preview with controls for accent presets, clay depth, corner radius, density, and haptics.
 - **`PlanService`**: Manages `getOrCreatePlan`, horizon sliding, day decision summaries, generation benchmarking, and event logging.
-- **Components**: `ClayCard`, `ClayButton`, `Chip`, `Ring`, `Bar`, `DayChip`, `BottomNav`, `IconSet`, `LogoIntro`, `StatTile`, `EmptyState`, `UpdateBanner`.
-- **Storage**: `IndexedDbEventLog` (append-only event store), `KeyValueStore` (durable state).
 
 ---
 
-## 3. Files Changed in this Task (Part 0 & M1-B1)
-- `apps/web/src/components/BottomNav.tsx` (verified inline logical styles for sliding indicator).
-- `apps/web/src/engine/engineContext.ts` (SystemClock, SystemIdGenerator, schedule provider, capability map).
-- `apps/web/src/engine/planService.ts` (PlanService, horizon sliding, decision explanations, timing measurement).
-- `apps/web/src/screens/HomeScreen.tsx` (wired real Day 0 session snapshot, 7-day horizon, decision rationale modal).
-- `apps/web/src/screens/TrainScreen.tsx` (wired 7-day plan inspection and prescribed exercise blueprint).
-- `apps/web/src/screens/MoreScreen.tsx` (displays measured plan generation time in diagnostics).
-- `apps/web/src/App.tsx` (hydrates plan via PlanService and propagates to screens).
-- `apps/web/src/i18n/index.ts` (added status, kind, reason, and plan strings).
-- `apps/web/src/__tests__/planService.test.ts` (unit tests for determinism, persistence, sliding, anti-flap, and <50ms benchmark).
-- `apps/web/src/__tests__/rtl.test.ts` (test ensuring BottomNav indicator retains logical styles).
-- `docs/REPORT_M1B1.md` (milestone completion report).
-- `docs/STATE.md` (overwritten current project state map).
+## 3. Files Changed in this Task (Phase 1)
+- `package.json` (added `"license": "MIT"`).
+- `LICENSE` (added MIT License copyright 2026 mo8dac137-max).
+- `public/_headers` (extended with security headers: nosniff, DENY, strict-origin-when-cross-origin, Permissions-Policy, strict CSP; kept cache rules).
+- `README.md` (added License badge, Install as PWA guide with offline guarantees, empty Screenshots section).
+- `docs/REPORT_PHASE1.md` (completion report for Phase 1).
+- `docs/STATE.md` (updated project state map, test totals, and file tree).
 
 ---
 
 ## 4. Test Counts per Package
 
-Total: **17 test files, 138 tests passing**.
-- `packages/engine-core`: 62 tests (engine-core: 59, engine-guard: 1, numeric-literals: 1, smoke: 1)
+Total: **18 test files, 147 tests passing**.
+- `packages/engine-core`: 71 tests (engine-core: 59, engine-honesty-e1a: 9, engine-guard: 1, numeric-literals: 1, smoke: 1)
 - `packages/contracts`: 21 tests
 - `packages/config`: 12 tests
 - `packages/events`: 7 tests
@@ -134,8 +132,11 @@ Total: **17 test files, 138 tests passing**.
 ---
 
 ## 5. Known Issues and TODOs
-- **M1-B2 / Workout Mode**: Implement workout runner with set-by-set timer, rest intervals, exercise completion logging, and RPE input.
-- **Supabase Cloud Sync**: Local-first schema ready for backend sync in later phase.
+- **Phase 2A (Next)**: Session Runner core logic (`apps/web/src/engine/sessionRunner.ts`) — pure reducer, timer state, injected clock/id-generator, append-only event emission, reload hydration.
+- **Phase 2B**: WorkoutRunnerScreen (UI) with big touch targets for Redmi 12, countdown ring, RPE logging, Arabic translations.
+- **Phase 2C**: Runner hardening, reload mid-rest, event idempotency.
+- **Phase 3**: Complete Arabic (100% dictionary coverage) + RTL audit.
+- **Phase 4**: Supabase sync (Gated).
 
 ---
 
@@ -156,3 +157,9 @@ Total: **17 test files, 138 tests passing**.
 14. `rank_weight_goal_weight` (default: 1.0)
 15. `rank_weight_schedule_fit` (default: 1.0)
 16. `rank_weight_readiness` (default: 1.0)
+17. `stimulus_gap_no_history` (default: 1.0)
+18. `progression_need_default` (default: 0.5)
+19. `readiness_default` (default: 0.8)
+20. `preferred_session_minutes` (default: 45)
+21. `min_eligible_patterns_per_unit` (default: 2)
+22. `unit_goal_weights` (object: strength/hypertrophy/endurance weights)
