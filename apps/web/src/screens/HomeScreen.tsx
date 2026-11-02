@@ -16,6 +16,7 @@ interface HomeScreenProps {
   plan: Plan | null;
   decisions: Record<number, DayDecisionSummary> | null;
   onNavigateTrainDay?: (dayIndex: number) => void;
+  onStartWorkout?: () => void;
   completedWorkoutsCount?: number;
   totalPlannedCount?: number;
   muscleExposure?: Record<string, number>;
@@ -25,12 +26,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   plan,
   decisions,
   onNavigateTrainDay,
+  onStartWorkout,
   completedWorkoutsCount = 0,
   totalPlannedCount = 4,
   muscleExposure,
 }) => {
   const [showWhyModal, setShowWhyModal] = useState(false);
-  const [showWorkoutModal, setShowWorkoutModal] = useState(false);
 
   // If plan is not ready yet, render a skeleton card without blocking
   if (!plan || !plan.days || plan.days.length === 0) {
@@ -175,8 +176,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <ClayButton
             variant="primary"
             accentColor="var(--accent)"
-            onClick={() => setShowWorkoutModal(true)}
-            className="flex-1 py-3.5 text-base font-black tracking-wide text-black"
+            onClick={onStartWorkout}
+            aria-label={t('home.start_workout')}
+            className="flex-1 py-3.5 text-base font-black tracking-wide text-black touch-target cursor-pointer active:scale-95 transition-motion"
           >
             <Icon name="play" size={18} color="#08080c" />
             <span>{t('home.start_workout')}</span>
@@ -379,29 +381,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               variant="secondary"
               onClick={() => setShowWhyModal(false)}
               className="w-full text-xs font-bold"
-            >
-              {t('home.modal_close')}
-            </ClayButton>
-          </ClayCard>
-        </div>
-      )}
-
-      {/* Placeholder Modal: Start Workout */}
-      {showWorkoutModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <ClayCard variant="hero" className="w-full max-w-sm flex flex-col gap-4 border border-white/10 text-center py-6">
-            <div className="w-12 h-12 rounded-full clay-sm flex items-center justify-center text-[var(--accent)] mx-auto mb-1">
-              <Icon name="bolt" size={24} color="var(--accent)" />
-            </div>
-            <h3 className="text-lg font-black text-white">{t('home.workout_modal_title')}</h3>
-            <p className="text-xs text-[var(--muted)] leading-relaxed">
-              {t('home.workout_modal_desc')}
-            </p>
-            <ClayButton
-              variant="primary"
-              accentColor="var(--accent)"
-              onClick={() => setShowWorkoutModal(false)}
-              className="w-full mt-2 text-xs font-black uppercase text-black"
             >
               {t('home.modal_close')}
             </ClayButton>

@@ -21,7 +21,8 @@ apps/web/
     │   ├── i18n-compliance.test.ts (120 lines)
     │   ├── planService.test.ts (163 lines)
     │   ├── rtl.test.ts (80 lines)
-    │   └── sessionRunner.test.ts (330 lines)
+    │   ├── sessionRunner.test.ts (330 lines)
+    │   └── workoutRunnerScreen.test.ts (125 lines)
     ├── components/
     │   ├── Bar.tsx (54 lines)
     │   ├── BottomNav.tsx (86 lines)
@@ -42,13 +43,14 @@ apps/web/
     │   ├── planService.ts (250 lines)
     │   └── sessionRunner.ts (450 lines)
     ├── i18n/
-    │   └── index.ts (346 lines)
+    │   └── index.ts (396 lines)
     ├── screens/
     │   ├── AppearanceLab.tsx (244 lines)
-    │   ├── HomeScreen.tsx (414 lines)
+    │   ├── HomeScreen.tsx (380 lines)
     │   ├── MoreScreen.tsx (528 lines)
     │   ├── ProgressScreen.tsx (96 lines)
-    │   └── TrainScreen.tsx (428 lines)
+    │   ├── TrainScreen.tsx (428 lines)
+    │   └── WorkoutRunnerScreen.tsx (905 lines)
     ├── storage/
     │   ├── idb.ts (59 lines)
     │   ├── index.ts (4 lines)
@@ -111,8 +113,9 @@ packages/
 - **`@hfos/engine-core`**: Deterministic pure-TS training engine: `buildHorizon`, `slideHorizon`, `deriveTrainingState`, `generateSession`, `evaluateProgression`, `validateWorkoutPlan`, `rankCandidates`.
 
 ### Web App (`apps/web`)
-- **`App`**: Root orchestrator managing navigation, splash launch, engine plan bootstrap, and IndexedDB hydration.
+- **`App`**: Root orchestrator managing navigation, splash launch, engine plan bootstrap, active workout routing, and IndexedDB hydration.
 - **`HomeScreen`**: 7-day horizon strip, Day 0 locked hero workout card, consistency ring, and "Why this session?" rationale sheet.
+- **`WorkoutRunnerScreen`**: Full-screen active workout execution UI: phase tracking, isolated Rest countdown Ring, reps stepper, RPE selector, honest pain toggle, pause/abandon modal dialogs, wake lock, haptics, WebAudio rest chime.
 - **`TrainScreen`**: Segmented control switching between active 7-day plan blueprint with day inspector and searchable exercise library.
 - **`ProgressScreen`**: Mastery score ring, rep target mastery, RPE effort tracking, and movement exposure window.
 - **`MoreScreen`**: Grouped navigation for Settings, Appearance Lab, Equipment, Data, and System Diagnostics.
@@ -122,19 +125,20 @@ packages/
 
 ---
 
-## 3. Files Changed in this Task (Phase 2A)
-- `apps/web/src/engine/sessionRunner.ts` (session runner core logic, pure reducer, event generator, persistence).
-- `apps/web/src/__tests__/sessionRunner.test.ts` (unit tests with fake clock, warmup/cooldown, rest auto-advance, reload, abandon, pain).
-- `packages/config/src/index.ts` (added `requireBoolean` accessor; added `warmup_sets_default`, `cooldown_duration_minutes`, `rest_floor_seconds`, `rest_ceiling_seconds`, `target_rpe_default`).
-- `packages/config/src/__tests__/config.test.ts` (added tests for Phase 2A settings and `requireBoolean`).
-- `docs/REPORT_PHASE2A.md` (completion report for Phase 2A).
+## 3. Files Changed in this Task (Phase 2B)
+- `apps/web/src/screens/WorkoutRunnerScreen.tsx` (UI for workout session execution).
+- `apps/web/src/screens/HomeScreen.tsx` (connected Day-0 card Start Workout to `onStartWorkout`).
+- `apps/web/src/App.tsx` (wired `activeWorkoutDay`, restored in-flight workout, hidden navigation during session).
+- `apps/web/src/i18n/index.ts` (added all `runner.*` keys in English and real Arabic).
+- `apps/web/src/__tests__/workoutRunnerScreen.test.ts` (10 unit/guard tests verifying component contracts and props).
+- `docs/REPORT_PHASE2B.md` (completion report for Phase 2B).
 - `docs/STATE.md` (updated project state map, test totals, and file tree).
 
 ---
 
 ## 4. Test Counts per Package
 
-Total: **19 test files, 155 tests passing**.
+Total: **20 test files, 165 tests passing**.
 - `packages/engine-core`: 71 tests (engine-core: 59, engine-honesty-e1a: 9, engine-guard: 1, numeric-literals: 1, smoke: 1)
 - `packages/contracts`: 21 tests
 - `packages/config`: 14 tests
@@ -142,13 +146,12 @@ Total: **19 test files, 155 tests passing**.
 - `packages/library`: 9 tests (library: 7, smoke: 2)
 - `packages/sim`: 4 tests (simulation: 1, smoke: 3)
 - `packages/ports`: 1 test
-- `apps/web`: 28 tests (sessionRunner: 6, planService: 6, storage: 4, appearance: 5, rtl: 6, i18n-compliance: 1)
+- `apps/web`: 38 tests (workoutRunnerScreen: 10, sessionRunner: 6, planService: 6, storage: 4, appearance: 5, rtl: 6, i18n-compliance: 1)
 
 ---
 
 ## 5. Known Issues and TODOs
-- **Phase 2B (Next)**: `WorkoutRunnerScreen.tsx` UI — connected to Day-0 card, clay design system, Redmi 12 / 360dp touch targets, countdown ring, RPE picker, pain toggle, haptics & wake lock integration, i18n keys (en + real Arabic).
-- **Phase 2C**: Runner hardening, mid-rest reload recovery in UI, idempotency, ProgressScreen & HomeScreen history wiring.
+- **Phase 2C (Next)**: Runner hardening, mid-rest reload recovery in UI, idempotency, ProgressScreen & HomeScreen history wiring.
 - **Phase 3**: Complete Arabic (100% dictionary coverage) + RTL audit.
 - **Phase 4**: Supabase sync (Gated).
 

@@ -23,7 +23,10 @@ import { HomeScreen } from './screens/HomeScreen.js';
 import { TrainScreen } from './screens/TrainScreen.js';
 import { ProgressScreen } from './screens/ProgressScreen.js';
 import { MoreScreen } from './screens/MoreScreen.js';
+import { WorkoutRunnerScreen } from './screens/WorkoutRunnerScreen.js';
 import { PlanService, type DayDecisionSummary } from './engine/planService.js';
+import { loadSessionRunner } from './engine/sessionRunner.js';
+import type { PlanDay } from '@hfos/contracts';
 
 export default function App() {
   const [lang, setLang] = useState<Language>(getLanguage());
@@ -35,6 +38,7 @@ export default function App() {
   const [plan, setPlan] = useState<Plan | null>(null);
   const [decisions, setDecisions] = useState<Record<number, DayDecisionSummary> | null>(null);
   const [selectedTrainDayIndex, setSelectedTrainDayIndex] = useState<number>(0);
+  const [activeWorkoutDay, setActiveWorkoutDay] = useState<PlanDay | null>(null);
 
   const [showIntro, setShowIntro] = useState<boolean>(true);
   const [isFirstEver, setIsFirstEver] = useState<boolean>(false);
@@ -71,10 +75,23 @@ export default function App() {
     setIsFirstEver(isFirstEverLaunch);
     setIsHydrated(true);
 
-    // 4. Load or generate Plan in background (never blocks first paint)
+    // 4. Restore in-flight workout if active
+    const savedSession = await loadSessionRunner(kv);
+    if (savedSession && !savedSession.is_abandoned && savedSession.phase !== 'done') {
+      setActiveWorkoutDay({
+        schema_version: 1,
+        day_index: 0,
+        status: 'locked',
+        kind: 'main',
+        unit: savedSession.training_unit,
+        session_snapshot: savedSession.snapshot,
+      });
+    }
+
+    // 5. Load or generate Plan in background (never blocks first paint)
     loadPlan();
 
-    // 5. Launch intro timer (<= 2000ms for first ever, 600ms for subsequent cold launches)
+    // 6. Launch intro timer (<= 2000ms for first ever, 600ms for subsequent cold launches)
     const timerDuration = isFirstEverLaunch ? 1800 : 600;
     const timer = setTimeout(() => {
       setShowIntro(false);
@@ -107,6 +124,13 @@ export default function App() {
     setActiveTab('train');
   };
 
+  const handleStartWorkout = useCallback(() => {
+    const day0 = plan?.days.find((d) => d.day_index === 0) || plan?.days[0];
+    if (day0) {
+      setActiveWorkoutDay(day0);
+    }
+  }, [plan]);
+
   return (
     <div className="flex-1 flex flex-col bg-[#0a0a10] text-[#f1f1f4] w-full min-h-screen relative overflow-x-hidden">
       {/* Launch Splash Screen */}
@@ -117,40 +141,56 @@ export default function App() {
         />
       )}
 
-      {/* Main Content Area: padding for safe area and floating bottom nav bar (min 72px + safe-bottom + 16px) */}
+      {/* Main Content Area */}
       <main
         className="flex-1 w-full max-w-lg mx-auto p-4 safe-top safe-left safe-right content-scroll-area overflow-y-auto"
         style={{ opacity: isHydrated ? 1 : 0 }}
       >
-        {activeTab === 'home' && (
-          <HomeScreen
-            plan={plan}
-            decisions={decisions}
-            onNavigateTrainDay={handleNavigateTrainDay}
+        {activeWorkoutDay ? (
+          <WorkoutRunnerScreen
+            planDay={activeWorkoutDay}
+            onClose={() => setActiveWorkoutDay(null)}
+            onSessionComplete={() => {
+              setActiveWorkoutDay(null);
+              loadPlan();
+            }}
           />
-        )}
-        {activeTab === 'train' && (
-          <TrainScreen
-            plan={plan}
-            selectedDayIndex={selectedTrainDayIndex}
-            onSelectDayIndex={setSelectedTrainDayIndex}
-          />
-        )}
-        {activeTab === 'progress' && <ProgressScreen />}
-        {activeTab === 'more' && (
-          <MoreScreen
-            currentLang={lang}
-            onLanguageChange={setLanguage}
-            mockProfile={mockProfile}
-            onProfileUpdated={handleProfileUpdated}
-            appearance={appearance}
-            onAppearanceChange={setAppearance}
-          />
+        ) : (
+          <>
+            {activeTab === 'home' && (
+              <HomeScreen
+                plan={plan}
+                decisions={decisions}
+                onNavigateTrainDay={handleNavigateTrainDay}
+                onStartWorkout={handleStartWorkout}
+              />
+            )}
+            {activeTab === 'train' && (
+              <TrainScreen
+                plan={plan}
+                selectedDayIndex={selectedTrainDayIndex}
+                onSelectDayIndex={setSelectedTrainDayIndex}
+              />
+            )}
+            {activeTab === 'progress' && <ProgressScreen />}
+            {activeTab === 'more' && (
+              <MoreScreen
+                currentLang={lang}
+                onLanguageChange={setLanguage}
+                mockProfile={mockProfile}
+                onProfileUpdated={handleProfileUpdated}
+                appearance={appearance}
+                onAppearanceChange={setAppearance}
+              />
+            )}
+          </>
         )}
       </main>
 
-      {/* Floating Bottom Navigation */}
-      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      {/* Floating Bottom Navigation (hidden during active workout) */}
+      {!activeWorkoutDay && (
+        <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      )}
     </div>
   );
 }
