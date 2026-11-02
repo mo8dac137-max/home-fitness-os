@@ -269,7 +269,7 @@ export const TrainScreen: React.FC<TrainScreenProps> = ({
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-end">
                         <span className="font-mono text-xs font-bold text-neutral-200 ltr-num block">
                           {setsCount} sets
                         </span>

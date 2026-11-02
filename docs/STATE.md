@@ -19,8 +19,9 @@ apps/web/
     ├── __tests__/
     │   ├── appearance.test.ts (125 lines)
     │   ├── i18n-compliance.test.ts (120 lines)
+    │   ├── i18nArabicCoverage.test.ts (65 lines)
     │   ├── planService.test.ts (163 lines)
-    │   ├── rtl.test.ts (80 lines)
+    │   ├── rtl.test.ts (129 lines)
     │   ├── sessionRunner.test.ts (330 lines)
     │   ├── sessionRunnerHardening.test.ts (433 lines)
     │   └── workoutRunnerScreen.test.ts (84 lines)
@@ -44,7 +45,7 @@ apps/web/
     │   ├── planService.ts (250 lines)
     │   └── sessionRunner.ts (669 lines)
     ├── i18n/
-    │   └── index.ts (445 lines)
+    │   └── index.ts (601 lines)
     ├── screens/
     │   ├── AppearanceLab.tsx (244 lines)
     │   ├── HomeScreen.tsx (380 lines)
@@ -126,7 +127,16 @@ packages/
 
 ---
 
-## 3. Files Changed in this Task (Phase 2C)
+## 3. Files Changed in this Task (Phase 3)
+- `apps/web/src/i18n/index.ts` (added the 146 missing Arabic translations — arDict now covers all 252 enDict keys; declaration tightened from `Partial<typeof enDict>` to `Record<keyof typeof enDict, string>` so missing keys are a compile error).
+- `apps/web/src/__tests__/i18nArabicCoverage.test.ts` (new, 65 lines: key parity, Arabic-script presence, `{placeholder}` parity, and `t()` resolving every key from arDict in Arabic mode).
+- `apps/web/src/__tests__/rtl.test.ts` (added the permanent RTL audit guard: physical direction classes (`ml-/mr-/pl-/pr-/text-left/text-right/rounded-l/rounded-r/border-l/border-r/left-N/right-N`) and physical CSS box properties fail the suite).
+- `apps/web/src/screens/HomeScreen.tsx` (`ml-1` → `ms-1`).
+- `apps/web/src/screens/MoreScreen.tsx` (`text-left` → `text-start`, 5 occurrences).
+- `apps/web/src/screens/TrainScreen.tsx` (`text-right` → `text-end`).
+- `docs/REPORT_PHASE3.md`, `docs/STATE.md`.
+
+### Previous: Files Changed in Phase 2C
 - `packages/config/src/index.ts` (added `rpe_min`, `rpe_max`, `rpe_step` settings).
 - `packages/config/src/__tests__/config.test.ts` (Phase 2C RPE scale settings test).
 - `apps/web/src/engine/sessionRunner.ts` (EXTEND_REST ceiling clamp + no backward motion; `target_reps` added to `session.set_logged` payload; SKIP_SET-out-of-warmup fix so rest advances to the working exercise).
@@ -149,7 +159,7 @@ packages/
 
 ## 4. Test Counts per Package
 
-Total: **21 test files, 178 tests passing**.
+Total: **22 test files, 183 tests passing**.
 - `packages/engine-core`: 71 tests (engine-core: 59, engine-honesty-e1a: 9, engine-guard: 1, numeric-literals: 1, smoke: 1)
 - `packages/contracts`: 21 tests
 - `packages/config`: 15 tests
@@ -157,13 +167,13 @@ Total: **21 test files, 178 tests passing**.
 - `packages/library`: 9 tests (library: 7, smoke: 2)
 - `packages/sim`: 4 tests (simulation: 1, smoke: 3)
 - `packages/ports`: 1 test
-- `apps/web`: 50 tests (sessionRunnerHardening: 12, workoutRunnerScreen: 10, sessionRunner: 6, planService: 6, storage: 4, appearance: 5, rtl: 6, i18n-compliance: 1)
+- `apps/web`: 55 tests (sessionRunnerHardening: 12, workoutRunnerScreen: 10, sessionRunner: 6, planService: 6, storage: 4, appearance: 5, rtl: 7, i18nArabicCoverage: 4, i18n-compliance: 1)
 
 ---
 
 ## 5. Known Issues and TODOs
-- **Phase 3 (Next)**: Complete Arabic (100% dictionary coverage) + RTL audit.
-- **Phase 4**: Supabase sync (Gated).
+- **Done (Phase 3)**: Arabic dictionary is at 100% coverage (252/252 keys in both dicts) and a permanent RTL audit guard blocks physical direction classes/CSS. Remaining deferred item below.
+- **Phase 4 (Next)**: Supabase sync (Gated).
 - **Deferred**: ProgressScreen & HomeScreen history wiring from logged session events.
 
 ---

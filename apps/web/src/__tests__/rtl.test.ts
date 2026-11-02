@@ -76,4 +76,54 @@ describe('RTL & Logical Properties Support (M1-A4)', () => {
     expect(content).toContain('insetBlock: 0');
     expect(content).toContain('insetInlineStart: 0');
   });
+
+  it('RTL audit: no physical direction classes or CSS properties (Phase 3)', () => {
+    const screensDir = path.resolve(__dirname, '../screens');
+    const componentsDir = path.resolve(__dirname, '../components');
+
+    const tsxFiles = [
+      ...fs.readdirSync(screensDir).map((f) => path.join(screensDir, f)),
+      ...fs.readdirSync(componentsDir).map((f) => path.join(componentsDir, f)),
+    ].filter((f) => f.endsWith('.tsx'));
+    expect(tsxFiles.length).toBeGreaterThan(0);
+
+    // Physical (direction-dependent) utilities must never be reintroduced;
+    // logical equivalents (ms-/me-/ps-/pe-/text-start/text-end/start-/end-)
+    // mirror automatically under [dir="rtl"].
+    const classPatterns: Array<[RegExp, string]> = [
+      [/(?:^|[\s"'])-?[mp][lr]-\d/, 'physical margin/padding (use ms-/me-/ps-/pe-)'],
+      [/(?:^|[\s"'])text-(?:left|right)(?:[\s"']|$)/, 'physical text alignment (use text-start/text-end)'],
+      [/(?:^|[\s"'])rounded-[lr](?:[tb])?(?=[\s"']|-)/, 'physical corner radius (use rounded-s-/rounded-e-)'],
+      [/(?:^|[\s"'])border-[lr](?:-|[\s"'])/, 'physical border side (use border-s-/border-e-)'],
+      [/(?:^|[\s"'])(?:left|right)-\d/, 'physical inset (use start-/end-)'],
+    ];
+
+    const violations: string[] = [];
+    for (const file of tsxFiles) {
+      const content = fs.readFileSync(file, 'utf-8');
+      for (const [pattern, hint] of classPatterns) {
+        if (pattern.test(content)) {
+          violations.push(`${path.basename(file)}: ${hint}`);
+        }
+      }
+    }
+
+    // CSS files: physical box properties are direction-dependent; .ltr-num's
+    // intentional `direction: ltr` is not a box property and stays allowed.
+    const cssFiles = [
+      path.resolve(__dirname, '../index.css'),
+      path.resolve(__dirname, '../styles/tokens.css'),
+      path.resolve(__dirname, '../styles/clay.css'),
+    ];
+    const cssPattern = /(?:padding|margin)-(?:left|right)\s*:|text-align\s*:\s*(?:left|right)/;
+    for (const cssPath of cssFiles) {
+      const content = fs.readFileSync(cssPath, 'utf-8');
+      const found = content.match(cssPattern);
+      if (found) {
+        violations.push(`${path.basename(cssPath)}: physical CSS property (${found.join(', ')})`);
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
 });

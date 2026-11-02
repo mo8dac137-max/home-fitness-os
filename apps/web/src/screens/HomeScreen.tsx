@@ -355,7 +355,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] mt-1.5 shrink-0" />
                   <div className="flex-1">
                     <span>{reason}</span>
-                    <span className="ml-1 text-[10px] text-[var(--muted)] uppercase">({t('common.estimate')})</span>
+                    <span className="ms-1 text-[10px] text-[var(--muted)] uppercase">({t('common.estimate')})</span>
                   </div>
                 </div>
               ))}

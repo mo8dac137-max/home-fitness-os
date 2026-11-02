@@ -444,7 +444,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
       <div className="flex flex-col gap-2.5">
         <button
           onClick={() => setSubView('settings')}
-          className="clay-sm p-4 w-full flex items-center justify-between text-left cursor-pointer transition-motion active:scale-98 border border-white/5"
+          className="clay-sm p-4 w-full flex items-center justify-between text-start cursor-pointer transition-motion active:scale-98 border border-white/5"
         >
           <div className="flex items-center gap-3.5">
             <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[var(--accent)]">
@@ -460,7 +460,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
 
         <button
           onClick={() => setSubView('appearance')}
-          className="clay-sm p-4 w-full flex items-center justify-between text-left cursor-pointer transition-motion active:scale-98 border border-white/5"
+          className="clay-sm p-4 w-full flex items-center justify-between text-start cursor-pointer transition-motion active:scale-98 border border-white/5"
         >
           <div className="flex items-center gap-3.5">
             <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[var(--accent)]">
@@ -476,7 +476,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
 
         <button
           onClick={() => setSubView('equipment')}
-          className="clay-sm p-4 w-full flex items-center justify-between text-left cursor-pointer transition-motion active:scale-98 border border-white/5"
+          className="clay-sm p-4 w-full flex items-center justify-between text-start cursor-pointer transition-motion active:scale-98 border border-white/5"
         >
           <div className="flex items-center gap-3.5">
             <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[var(--teal)]">
@@ -492,7 +492,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
 
         <button
           onClick={() => setSubView('data')}
-          className="clay-sm p-4 w-full flex items-center justify-between text-left cursor-pointer transition-motion active:scale-98 border border-white/5"
+          className="clay-sm p-4 w-full flex items-center justify-between text-start cursor-pointer transition-motion active:scale-98 border border-white/5"
         >
           <div className="flex items-center gap-3.5">
             <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[var(--coral)]">
@@ -508,7 +508,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
 
         <button
           onClick={() => setSubView('about')}
-          className="clay-sm p-4 w-full flex items-center justify-between text-left cursor-pointer transition-motion active:scale-98 border border-white/5"
+          className="clay-sm p-4 w-full flex items-center justify-between text-start cursor-pointer transition-motion active:scale-98 border border-white/5"
         >
           <div className="flex items-center gap-3.5">
             <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[var(--cyan)]">
