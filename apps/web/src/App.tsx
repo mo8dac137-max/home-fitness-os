@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import type { Plan } from '@hfos/contracts';
 import {
   type Language,
@@ -6,7 +6,7 @@ import {
   setLanguage,
   subscribeLanguage,
 } from './i18n/index.js';
-import { KeyValueStore, requestStoragePersistence } from './storage/index.js';
+import { KeyValueStore, requestStoragePersistence, IndexedDbEventLog } from './storage/index.js';
 import {
   bootstrapMockUser,
   KV_KEY_LANGUAGE,
@@ -26,6 +26,7 @@ import { MoreScreen } from './screens/MoreScreen.js';
 import { WorkoutRunnerScreen } from './screens/WorkoutRunnerScreen.js';
 import { PlanService, type DayDecisionSummary } from './engine/planService.js';
 import { loadSessionRunner } from './engine/sessionRunner.js';
+import { loadHistorySummary, type TrainingHistorySummary } from './engine/historyService.js';
 import type { PlanDay } from '@hfos/contracts';
 
 export default function App() {
@@ -40,6 +41,10 @@ export default function App() {
   const [selectedTrainDayIndex, setSelectedTrainDayIndex] = useState<number>(0);
   const [activeWorkoutDay, setActiveWorkoutDay] = useState<PlanDay | null>(null);
 
+  // Derived training history from the append-only event log
+  const [history, setHistory] = useState<TrainingHistorySummary | null>(null);
+  const planRef = useRef<Plan | null>(null);
+
   const [showIntro, setShowIntro] = useState<boolean>(true);
   const [isFirstEver, setIsFirstEver] = useState<boolean>(false);
   const [isHydrated, setIsHydrated] = useState<boolean>(false);
@@ -48,10 +53,22 @@ export default function App() {
     try {
       const planService = new PlanService();
       const result = await planService.getOrCreatePlan();
+      planRef.current = result.plan;
       setPlan(result.plan);
       setDecisions(result.decisions);
     } catch {
       // Fallback silently if storage unavailable
+    }
+  }, []);
+
+  const loadHistory = useCallback(async () => {
+    try {
+      const eventLog = new IndexedDbEventLog();
+      const summary = await loadHistorySummary(eventLog, planRef.current);
+      setHistory(summary);
+    } catch {
+      // Storage unavailable: screens keep their honest empty states
+      setHistory(null);
     }
   }, []);
 
@@ -88,8 +105,10 @@ export default function App() {
       });
     }
 
-    // 5. Load or generate Plan in background (never blocks first paint)
-    loadPlan();
+    // 5. Load or generate Plan in background (never blocks first paint), then
+    //    derive home/progress history from the session event log
+    await loadPlan();
+    loadHistory();
 
     // 6. Launch intro timer (<= 2000ms for first ever, 600ms for subsequent cold launches)
     const timerDuration = isFirstEverLaunch ? 1800 : 600;
@@ -153,6 +172,7 @@ export default function App() {
             onSessionComplete={() => {
               setActiveWorkoutDay(null);
               loadPlan();
+              loadHistory();
             }}
           />
         ) : (
@@ -163,6 +183,13 @@ export default function App() {
                 decisions={decisions}
                 onNavigateTrainDay={handleNavigateTrainDay}
                 onStartWorkout={handleStartWorkout}
+                completedWorkoutsCount={history?.completed_sessions_in_window ?? 0}
+                totalPlannedCount={
+                  history && history.planned_main_sessions > 0
+                    ? history.planned_main_sessions
+                    : undefined
+                }
+                muscleExposure={history?.muscle_exposure}
               />
             )}
             {activeTab === 'train' && (
@@ -172,7 +199,7 @@ export default function App() {
                 onSelectDayIndex={setSelectedTrainDayIndex}
               />
             )}
-            {activeTab === 'progress' && <ProgressScreen />}
+            {activeTab === 'progress' && <ProgressScreen history={history} />}
             {activeTab === 'more' && (
               <MoreScreen
                 currentLang={lang}

@@ -11,7 +11,7 @@ apps/web/
 ├── package.json (32 lines)
 ├── tsconfig.json (8 lines)
 └── src/
-    ├── App.tsx (157 lines)
+    ├── App.tsx (223 lines)
     ├── appearance.ts (139 lines)
     ├── bootstrap.ts (86 lines)
     ├── index.css (150 lines)
@@ -19,6 +19,8 @@ apps/web/
     ├── __tests__/
     │   ├── appearance.test.ts (125 lines)
     │   ├── i18n-compliance.test.ts (120 lines)
+    │   ├── historyService.test.ts (249 lines)
+    │   ├── historyWiring.test.ts (48 lines)
     │   ├── i18nArabicCoverage.test.ts (65 lines)
     │   ├── planService.test.ts (163 lines)
     │   ├── rtl.test.ts (129 lines)
@@ -42,15 +44,16 @@ apps/web/
     │   └── UpdateBanner.tsx (63 lines)
     ├── engine/
     │   ├── engineContext.ts (86 lines)
+    │   ├── historyService.ts (184 lines)
     │   ├── planService.ts (250 lines)
     │   └── sessionRunner.ts (669 lines)
     ├── i18n/
-    │   └── index.ts (601 lines)
+    │   └── index.ts (643 lines)
     ├── screens/
     │   ├── AppearanceLab.tsx (244 lines)
-    │   ├── HomeScreen.tsx (380 lines)
+    │   ├── HomeScreen.tsx (394 lines)
     │   ├── MoreScreen.tsx (528 lines)
-    │   ├── ProgressScreen.tsx (96 lines)
+    │   ├── ProgressScreen.tsx (174 lines)
     │   ├── TrainScreen.tsx (428 lines)
     │   └── WorkoutRunnerScreen.tsx (1020 lines)
     ├── storage/
@@ -127,7 +130,19 @@ packages/
 
 ---
 
-## 3. Files Changed in this Task (Phase 3)
+## 3. Files Changed in this Task (History Wiring — deferred item)
+- `apps/web/src/engine/historyService.ts` (new, 184 lines: pure `buildHistorySummary` over injected envelopes + `loadHistorySummary` EventLog loader; window sizes from `@hfos/config`; pattern fallback via `@hfos/library`; defensive idempotency dedupe).
+- `apps/web/src/__tests__/historyService.test.ts` (new, 9 behavioral tests: empty-log honesty, 7-day completion window, rep-target hits + average RPE, 14d pattern vs 7d muscle exposure, library pattern fallback, planned main sessions, idempotency dedupe, abandoned semantics, InMemoryEventLog round-trip).
+- `apps/web/src/__tests__/historyWiring.test.ts` (new, 3 source guards: App wiring, non-estimate bars, i18n-only labels).
+- `apps/web/src/screens/ProgressScreen.tsx` (real mastery ring = rep-target hit rate, real sets/RPE tiles, real pattern exposure bars with `estimate={false}`, conditional honest empty state; static mock values removed).
+- `apps/web/src/screens/HomeScreen.tsx` (consistency ring fed by real counts with overflow clamp, i18n interpolation for consistency line, unit labels via i18n keys, mock session title removed).
+- `apps/web/src/App.tsx` (loads history after plan, refreshes after session completion, passes summary to both screens).
+- `packages/config/src/index.ts` (added `history_consistency_window_days` (7), `history_exposure_window_days` (14); consumer `history_service`).
+- `packages/config/src/__tests__/config.test.ts` (history window settings test).
+- `apps/web/src/i18n/index.ts` (added 10 `pattern.*` labels + `progress.tracked_locally` + `home.consistency_progress` + 4 unit keys, both dicts; now 268/268 parity).
+- `docs/REPORT_HISTORY_WIRING.md`, `docs/STATE.md`.
+
+### Previous: Files Changed in Phase 3
 - `apps/web/src/i18n/index.ts` (added the 146 missing Arabic translations — arDict now covers all 252 enDict keys; declaration tightened from `Partial<typeof enDict>` to `Record<keyof typeof enDict, string>` so missing keys are a compile error).
 - `apps/web/src/__tests__/i18nArabicCoverage.test.ts` (new, 65 lines: key parity, Arabic-script presence, `{placeholder}` parity, and `t()` resolving every key from arDict in Arabic mode).
 - `apps/web/src/__tests__/rtl.test.ts` (added the permanent RTL audit guard: physical direction classes (`ml-/mr-/pl-/pr-/text-left/text-right/rounded-l/rounded-r/border-l/border-r/left-N/right-N`) and physical CSS box properties fail the suite).
@@ -159,22 +174,22 @@ packages/
 
 ## 4. Test Counts per Package
 
-Total: **22 test files, 183 tests passing**.
+Total: **24 test files, 196 tests passing**.
 - `packages/engine-core`: 71 tests (engine-core: 59, engine-honesty-e1a: 9, engine-guard: 1, numeric-literals: 1, smoke: 1)
 - `packages/contracts`: 21 tests
-- `packages/config`: 15 tests
+- `packages/config`: 16 tests
 - `packages/events`: 7 tests
 - `packages/library`: 9 tests (library: 7, smoke: 2)
 - `packages/sim`: 4 tests (simulation: 1, smoke: 3)
 - `packages/ports`: 1 test
-- `apps/web`: 55 tests (sessionRunnerHardening: 12, workoutRunnerScreen: 10, sessionRunner: 6, planService: 6, storage: 4, appearance: 5, rtl: 7, i18nArabicCoverage: 4, i18n-compliance: 1)
+- `apps/web`: 64 tests (sessionRunnerHardening: 12, historyService: 9, workoutRunnerScreen: 10, sessionRunner: 6, planService: 6, storage: 4, appearance: 5, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, i18n-compliance: 1)
 
 ---
 
 ## 5. Known Issues and TODOs
-- **Done (Phase 3)**: Arabic dictionary is at 100% coverage (252/252 keys in both dicts) and a permanent RTL audit guard blocks physical direction classes/CSS. Remaining deferred item below.
+- **Done (Phase 3)**: Arabic dictionary is at 100% coverage (now 268/268 keys in both dicts) and a permanent RTL audit guard blocks physical direction classes/CSS.
+- **Done (History Wiring)**: the deferred item is complete — ProgressScreen and HomeScreen now derive mastery, consistency, and exposure from the append-only session event log via `historyService`; static mock metrics were removed.
 - **Phase 4 (Next)**: Supabase sync (Gated).
-- **Deferred**: ProgressScreen & HomeScreen history wiring from logged session events.
 
 ---
 
@@ -191,6 +206,8 @@ Total: **22 test files, 183 tests passing**.
 10. `rpe_min` (default: 6.0)
 11. `rpe_max` (default: 9.5)
 12. `rpe_step` (default: 0.5)
+12a. `history_consistency_window_days` (default: 7)
+12b. `history_exposure_window_days` (default: 14)
 13. `readiness_checkin_weight` (default: 0.25)
 14. `rank_weight_priority_need` (default: 1.0)
 15. `rank_weight_stimulus_gap` (default: 1.0)

@@ -125,13 +125,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </span>
               {day0.kind === 'main' && (
                 <span className="text-xs text-[var(--muted)] font-mono ltr-num">
-                  {estimatedDurationMinutes} {t('home.session_duration').split(' ')[1] ?? 'min'}
+                  {estimatedDurationMinutes} {t('home.duration_unit')}
                 </span>
               )}
             </div>
             <h3 className="text-xl font-black text-white tracking-tight">
               {day0.kind === 'main'
-                ? `Upper push (Unit ${plan.days[0]?.day_index !== undefined ? 'A' : 'A'})`
+                ? t('home.session_title')
                 : t('home.rest_day_title')}
             </h3>
             <div className="text-xs text-[var(--muted)] font-mono mt-0.5 flex items-center gap-1">
@@ -148,10 +148,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         {day0.kind === 'main' && day0Exercises.length > 0 && (
           <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
             <span className="font-semibold text-white ltr-num">
-              {day0Exercises.length} exercises
+              {day0Exercises.length} {t('home.exercises_count_unit')}
             </span>
             <span>•</span>
-            <span className="ltr-num">{totalSets} working sets</span>
+            <span className="ltr-num">{totalSets} {t('home.working_sets_unit')}</span>
             <span>•</span>
             <span className="text-[var(--accent)] font-mono ltr-num">{t('home.rpe_target')}</span>
           </div>
@@ -234,7 +234,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <>
               <div className="flex items-center justify-center py-2">
                 <Ring
-                  progress={completedWorkoutsCount / totalPlannedCount}
+                  progress={Math.min(1, completedWorkoutsCount / Math.max(1, totalPlannedCount))}
                   size={72}
                   strokeWidth={7}
                   color="var(--accent)"
@@ -246,7 +246,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </Ring>
               </div>
               <span className="text-[11px] text-center text-[var(--muted)] font-medium ltr-num">
-                {completedWorkoutsCount} of {totalPlannedCount} sessions done
+                {t('home.consistency_progress')
+                  .replace('{done}', String(completedWorkoutsCount))
+                  .replace('{total}', String(totalPlannedCount))}
               </span>
             </>
           ) : (
@@ -298,11 +300,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <div className="flex flex-col gap-3 pt-1">
           {muscleExposure && Object.keys(muscleExposure).length > 0 ? (
             <>
-              <Bar value={muscleExposure.chest ?? 0} color="var(--coral)" label={t('home.muscle_chest')} sublabel={`${muscleExposure.chest ?? 0} sets`} />
-              <Bar value={muscleExposure.back ?? 0} color="var(--cyan)" label={t('home.muscle_back')} sublabel={`${muscleExposure.back ?? 0} sets`} />
-              <Bar value={muscleExposure.shoulders ?? 0} color="var(--orange)" label={t('home.muscle_shoulders')} sublabel={`${muscleExposure.shoulders ?? 0} sets`} />
-              <Bar value={muscleExposure.legs ?? 0} color="var(--violet)" label={t('home.muscle_quads')} sublabel={`${muscleExposure.legs ?? 0} sets`} />
-              <Bar value={muscleExposure.abs ?? 0} color="var(--yellow)" label={t('home.muscle_core')} sublabel={`${muscleExposure.abs ?? 0} sets`} />
+              <Bar value={muscleExposure.chest ?? 0} color="var(--coral)" label={t('home.muscle_chest')} sublabel={`${muscleExposure.chest ?? 0} ${t('home.sets_unit')}`} />
+              <Bar value={muscleExposure.back ?? 0} color="var(--cyan)" label={t('home.muscle_back')} sublabel={`${muscleExposure.back ?? 0} ${t('home.sets_unit')}`} />
+              <Bar value={muscleExposure.shoulders ?? 0} color="var(--orange)" label={t('home.muscle_shoulders')} sublabel={`${muscleExposure.shoulders ?? 0} ${t('home.sets_unit')}`} />
+              <Bar value={muscleExposure.legs ?? 0} color="var(--violet)" label={t('home.muscle_quads')} sublabel={`${muscleExposure.legs ?? 0} ${t('home.sets_unit')}`} />
+              <Bar value={muscleExposure.abs ?? 0} color="var(--yellow)" label={t('home.muscle_core')} sublabel={`${muscleExposure.abs ?? 0} ${t('home.sets_unit')}`} />
             </>
           ) : (
             <div className="text-center py-6 text-xs text-[var(--muted)] flex flex-col items-center gap-1">

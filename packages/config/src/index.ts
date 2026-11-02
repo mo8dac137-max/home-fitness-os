@@ -991,6 +991,30 @@ export const DEFAULT_SETTINGS: SettingDefinition[] = [
     version: '1.0.0',
     description: 'Step increment between selectable RPE values (0.25-1.0)',
   },
+  // History wiring (deferred item): trailing windows for home consistency / muscle
+  // exposure and progress metrics, derived from the append-only session event log.
+  {
+    schema_version: 1,
+    key: 'history_consistency_window_days',
+    type: 'number',
+    default: 7,
+    bounds: { min: 5, max: 14 },
+    scope: 'user',
+    consumer: 'history_service',
+    version: '1.0.0',
+    description: 'Trailing window (days) for home consistency ring and muscle exposure (5-14)',
+  },
+  {
+    schema_version: 1,
+    key: 'history_exposure_window_days',
+    type: 'number',
+    default: 14,
+    bounds: { min: 7, max: 28 },
+    scope: 'user',
+    consumer: 'history_service',
+    version: '1.0.0',
+    description: 'Trailing window (days) for progress metrics and pattern exposure (7-28)',
+  },
 ];
 
 class SettingsRegistry {

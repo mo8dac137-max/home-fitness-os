@@ -284,7 +284,28 @@ export const enDict = {
   'runner.avg_rpe': 'Average RPE',
   'runner.patterns_trained': 'Movement patterns',
   'runner.return_home': 'Return to Home',
+  // ── History wiring: movement pattern labels & derived-metric copy ──
+  'pattern.horizontal_push': 'Horizontal push',
+  'pattern.vertical_push': 'Vertical push',
+  'pattern.horizontal_pull': 'Horizontal pull',
+  'pattern.vertical_pull': 'Vertical pull',
+  'pattern.squat': 'Squat',
+  'pattern.hinge': 'Hinge',
+  'pattern.lunge': 'Lunge',
+  'pattern.core': 'Core',
+  'pattern.mobility': 'Mobility',
+  'pattern.conditioning': 'Conditioning',
+  'progress.tracked_locally': 'Computed from your locally logged sessions',
+  'home.consistency_progress': '{done} of {total} sessions done',
+  'home.duration_unit': 'min',
+  'home.exercises_count_unit': 'exercises',
+  'home.sets_unit': 'sets',
+  'home.working_sets_unit': 'working sets',
 };
+
+
+
+
 
 export const arDict: Record<keyof typeof enDict, string> = {
   // Navigation tabs
@@ -568,7 +589,28 @@ export const arDict: Record<keyof typeof enDict, string> = {
   'about.events_count': 'عدد الأحداث المحفوظة',
   'about.config_keys': 'مفاتيح الإعدادات الفعلية',
   'about.plan_gen_time': 'زمن توليد الخطة',
+  // ── History wiring: movement pattern labels & derived-metric copy ──
+  'pattern.horizontal_push': 'دفع أفقي',
+  'pattern.vertical_push': 'دفع رأسي',
+  'pattern.horizontal_pull': 'سحب أفقي',
+  'pattern.vertical_pull': 'سحب رأسي',
+  'pattern.squat': 'قرفصاء',
+  'pattern.hinge': 'مفصلة الورك',
+  'pattern.lunge': 'طعن',
+  'pattern.core': 'الجذع',
+  'pattern.mobility': 'مرونة',
+  'pattern.conditioning': 'تكييف عام',
+  'progress.tracked_locally': 'يُحسب من سجل جلساتك المحلية',
+  'home.consistency_progress': 'اكتملت {done} من {total} جلسات',
+  'home.duration_unit': 'دقيقة',
+  'home.exercises_count_unit': 'تمارين',
+  'home.sets_unit': 'مجموعات',
+  'home.working_sets_unit': 'مجموعات عمل',
 };
+
+
+
+
 
 export type I18nKey = keyof typeof enDict;
 

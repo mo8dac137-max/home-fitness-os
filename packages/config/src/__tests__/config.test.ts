@@ -224,6 +224,22 @@ describe('@hfos/config', () => {
       expect(requireNumber(config, 'rpe_step')).toBe(0.5);
     });
 
+    it('seeds history trailing window settings correctly', () => {
+      const config = getEffectiveConfig();
+      expect(config['history_consistency_window_days']).toBe(7);
+      expect(config['history_exposure_window_days']).toBe(14);
+
+      // Bounds validation
+      expect(validateSettingValue('history_consistency_window_days', 3, 'user').valid).toBe(false);
+      expect(validateSettingValue('history_consistency_window_days', 7, 'user').valid).toBe(true);
+      expect(validateSettingValue('history_exposure_window_days', 30, 'user').valid).toBe(false);
+      expect(validateSettingValue('history_exposure_window_days', 14, 'user').valid).toBe(true);
+
+      // Typed accessor extraction
+      expect(requireNumber(config, 'history_consistency_window_days')).toBe(7);
+      expect(requireNumber(config, 'history_exposure_window_days')).toBe(14);
+    });
+
     it('validates requireBoolean helper', () => {
       const testConfig = { is_active: true, is_flag: false, not_bool: 'yes' };
       expect(requireBoolean(testConfig, 'is_active')).toBe(true);
