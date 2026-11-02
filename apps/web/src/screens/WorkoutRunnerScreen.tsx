@@ -7,6 +7,7 @@ import { Chip } from '../components/Chip.js';
 import { Ring } from '../components/Ring.js';
 import { Icon } from '../components/IconSet.js';
 import { INITIAL_EXERCISE_LIBRARY } from '@hfos/library';
+import { getEffectiveConfig, requireNumber } from '@hfos/config';
 import { KeyValueStore, IndexedDbEventLog } from '../storage/index.js';
 import {
   type AppearanceSettings,
@@ -69,6 +70,32 @@ function triggerHaptics(appearance: AppearanceSettings, pattern: number | number
     }
   }
 }
+
+// ==========================================
+// RPE Selector Scale (config-driven, Phase 2C)
+// ==========================================
+
+function buildRpeOptions(): number[] {
+  const cfg = getEffectiveConfig();
+  const min = requireNumber(cfg, 'rpe_min');
+  const max = requireNumber(cfg, 'rpe_max');
+  const step = requireNumber(cfg, 'rpe_step');
+  if (!(step > 0) || max < min) {
+    throw new Error(
+      `Invalid RPE scale config: rpe_min=${min}, rpe_max=${max}, rpe_step=${step}`
+    );
+  }
+  const steps = Math.round((max - min) / step);
+  const options: number[] = [];
+  for (let i = 0; i <= steps; i++) {
+    // Round to 1 decimal to avoid binary float drift (e.g. 6.600000000000001)
+    options.push(Math.round((min + i * step) * 10) / 10);
+  }
+  return options;
+}
+
+const RPE_OPTIONS: number[] = buildRpeOptions();
+const DEFAULT_TARGET_RPE: number = requireNumber(getEffectiveConfig(), 'target_rpe_default');
 
 // ==========================================
 // Isolated Timer Component (Directive 4)
@@ -180,12 +207,20 @@ export const WorkoutRunnerScreen: React.FC<WorkoutRunnerScreenProps> = ({
   const [abandonReason, setAbandonReason] = useState<string>('');
   const [isReady, setIsReady] = useState<boolean>(false);
 
+  // Degraded storage mode (Phase 2C): session continues in-memory if persistence fails
+  const [storageDegraded, setStorageDegraded] = useState<boolean>(false);
+  const [degradedDismissed, setDegradedDismissed] = useState<boolean>(false);
+
   // Per-set inputs
   const [currentReps, setCurrentReps] = useState<number>(10);
-  const [selectedRpe, setSelectedRpe] = useState<number>(7.5);
+  const [selectedRpe, setSelectedRpe] = useState<number>(DEFAULT_TARGET_RPE);
   const [hasPain, setHasPain] = useState<boolean>(false);
 
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+  const pauseTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const abandonTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const pauseDialogRef = useRef<HTMLDivElement | null>(null);
+  const abandonInputRef = useRef<HTMLInputElement | null>(null);
 
   // Fallback prescription snapshot if planDay has none
   const prescription: PrescriptionSnapshot = useMemo(() => {
@@ -225,6 +260,10 @@ export const WorkoutRunnerScreen: React.FC<WorkoutRunnerScreenProps> = ({
     createInitialRunnerState(prescription, planDay.unit, deps)
   );
 
+  // Ref mirror for event listeners that must not re-subscribe on every state change
+  const runnerStateRef = useRef<SessionRunnerState>(runnerState);
+  runnerStateRef.current = runnerState;
+
   // Hydrate from KV store on mount (restores mid-session state on reload)
   useEffect(() => {
     let isMounted = true;
@@ -250,9 +289,9 @@ export const WorkoutRunnerScreen: React.FC<WorkoutRunnerScreenProps> = ({
   useEffect(() => {
     if (!isReady) return;
     if (runnerState.phase === 'done' || runnerState.is_abandoned) {
-      clearSessionRunner(kvStore).catch(() => {});
+      clearSessionRunner(kvStore).catch(() => setStorageDegraded(true));
     } else {
-      saveSessionRunner(kvStore, runnerState).catch(() => {});
+      saveSessionRunner(kvStore, runnerState).catch(() => setStorageDegraded(true));
     }
   }, [runnerState, isReady, kvStore]);
 
@@ -287,6 +326,33 @@ export const WorkoutRunnerScreen: React.FC<WorkoutRunnerScreenProps> = ({
     };
   }, [runnerState.is_paused, runnerState.is_abandoned, runnerState.phase]);
 
+  // Visibility change resilience (Phase 2C): when the device returns from
+  // sleep or an app switch, re-acquire the Wake Lock if the session is still
+  // running and push a stale-deadline re-sync through the reducer.
+  // AUTO_ADVANCE is idempotent: it advances exactly one phase when the
+  // deadline has passed and is a no-op otherwise (fresh deadline or already
+  // advanced by the countdown ticker).
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (typeof document === 'undefined' || document.visibilityState !== 'visible') return;
+      const prev = runnerStateRef.current;
+      const isRunning = !prev.is_paused && !prev.is_abandoned && prev.phase !== 'done';
+      if (isRunning && typeof navigator !== 'undefined' && 'wakeLock' in navigator) {
+        navigator.wakeLock
+          .request('screen')
+          .then((lock) => {
+            wakeLockRef.current = lock;
+          })
+          .catch(() => {
+            // Degrade silently where unsupported
+          });
+      }
+      setRunnerState((state) => sessionReducer(state, { type: 'AUTO_ADVANCE' }, deps));
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [deps]);
+
   // Current Exercise & Set references
   const currentExPrescription = runnerState.snapshot.exercises[runnerState.current_exercise_index];
   const currentSetPrescription = currentExPrescription?.sets[runnerState.current_set_index];
@@ -304,7 +370,7 @@ export const WorkoutRunnerScreen: React.FC<WorkoutRunnerScreenProps> = ({
   useEffect(() => {
     if (runnerState.phase === 'warmup') {
       setCurrentReps(10);
-      setSelectedRpe(6.0);
+      setSelectedRpe(RPE_OPTIONS[0] ?? DEFAULT_TARGET_RPE);
       setHasPain(false);
       return;
     }
@@ -316,7 +382,7 @@ export const WorkoutRunnerScreen: React.FC<WorkoutRunnerScreenProps> = ({
         currentSetPrescription.min_reps ??
         10;
       setCurrentReps(target);
-      setSelectedRpe(currentSetPrescription.target_rpe ?? 7.5);
+      setSelectedRpe(currentSetPrescription.target_rpe ?? DEFAULT_TARGET_RPE);
       setHasPain(false);
     }
   }, [runnerState.phase, runnerState.current_exercise_index, runnerState.current_set_index, currentSetPrescription]);
@@ -366,6 +432,7 @@ export const WorkoutRunnerScreen: React.FC<WorkoutRunnerScreenProps> = ({
   const handleResume = useCallback(() => {
     setShowPauseModal(false);
     setRunnerState((prev) => sessionReducer(prev, { type: 'RESUME' }, deps));
+    requestAnimationFrame(() => pauseTriggerRef.current?.focus());
   }, [deps]);
 
   const handleConfirmAbandon = useCallback(() => {
@@ -387,7 +454,7 @@ export const WorkoutRunnerScreen: React.FC<WorkoutRunnerScreenProps> = ({
       }
       await clearSessionRunner(kvStore);
     } catch {
-      // Degrade gracefully
+      setStorageDegraded(true);
     }
     if (onSessionComplete) {
       onSessionComplete();
@@ -395,6 +462,27 @@ export const WorkoutRunnerScreen: React.FC<WorkoutRunnerScreenProps> = ({
       onClose();
     }
   }, [runnerState, deps, eventLog, kvStore, onSessionComplete, onClose]);
+
+  // Modal accessibility (Phase 2C): focus management + Escape handling
+  useEffect(() => {
+    if (!showPauseModal) return;
+    pauseDialogRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleResume();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showPauseModal, handleResume]);
+
+  useEffect(() => {
+    if (!showAbandonModal) return;
+    abandonInputRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowAbandonModal(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showAbandonModal]);
 
   // Phase badge display
   const phaseLabelKey: I18nKey = useMemo(() => {
@@ -425,7 +513,7 @@ export const WorkoutRunnerScreen: React.FC<WorkoutRunnerScreenProps> = ({
     const avgRpe =
       rpeValues.length > 0
         ? (rpeValues.reduce((a, b) => a + b, 0) / rpeValues.length).toFixed(1)
-        : '7.5';
+        : DEFAULT_TARGET_RPE.toFixed(1);
 
     const endMs = runnerState.completed_at
       ? Date.parse(runnerState.completed_at)
@@ -555,25 +643,27 @@ export const WorkoutRunnerScreen: React.FC<WorkoutRunnerScreenProps> = ({
     currentSetPrescription?.max_reps ??
     currentSetPrescription?.min_reps ??
     10;
-  const targetRpePrescription = currentSetPrescription?.target_rpe ?? 7.5;
+  const targetRpePrescription = currentSetPrescription?.target_rpe ?? DEFAULT_TARGET_RPE;
 
   return (
     <div className="flex-1 flex flex-col justify-between max-w-lg mx-auto w-full min-h-[92vh] pb-6 px-3">
       {/* 1. Header Toolbar */}
       <div className="flex items-center justify-between py-2 border-b border-white/10">
         <div className="flex items-center gap-2">
-          <Chip
-            label={t(phaseLabelKey)}
-            color={
-              runnerState.phase === 'warmup'
-                ? 'var(--coral)'
-                : runnerState.phase === 'rest'
-                ? 'var(--blue)'
-                : runnerState.phase === 'cooldown'
-                ? 'var(--violet)'
-                : 'var(--accent)'
-            }
-          />
+          <div aria-live="polite">
+            <Chip
+              label={t(phaseLabelKey)}
+              color={
+                runnerState.phase === 'warmup'
+                  ? 'var(--coral)'
+                  : runnerState.phase === 'rest'
+                  ? 'var(--blue)'
+                  : runnerState.phase === 'cooldown'
+                  ? 'var(--violet)'
+                  : 'var(--accent)'
+              }
+            />
+          </div>
           {currentExerciseDef && (
             <Chip
               label={currentExerciseDef.pattern.replace('_', ' ')}
@@ -584,6 +674,7 @@ export const WorkoutRunnerScreen: React.FC<WorkoutRunnerScreenProps> = ({
 
         <div className="flex items-center gap-2">
           <button
+            ref={pauseTriggerRef}
             onClick={handlePause}
             aria-label={t('runner.pause')}
             className="touch-target px-3 py-1.5 rounded-lg clay-sm text-xs font-bold text-[var(--muted)] hover:text-white transition-motion cursor-pointer active:scale-95 flex items-center gap-1"
@@ -592,6 +683,7 @@ export const WorkoutRunnerScreen: React.FC<WorkoutRunnerScreenProps> = ({
             <span>{t('runner.pause')}</span>
           </button>
           <button
+            ref={abandonTriggerRef}
             onClick={() => setShowAbandonModal(true)}
             aria-label={t('runner.abandon')}
             className="touch-target px-2.5 py-1.5 rounded-lg clay-sm text-xs font-bold text-red-400/80 hover:text-red-300 transition-motion cursor-pointer active:scale-95"
@@ -736,7 +828,7 @@ export const WorkoutRunnerScreen: React.FC<WorkoutRunnerScreenProps> = ({
               </div>
 
               <div className="grid grid-cols-4 gap-2 pt-1">
-                {[6.0, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5].map((val) => {
+                {RPE_OPTIONS.map((val) => {
                   const isSelected = selectedRpe === val;
                   const isPrescribed = targetRpePrescription === val;
                   return (
@@ -797,6 +889,24 @@ export const WorkoutRunnerScreen: React.FC<WorkoutRunnerScreenProps> = ({
         )}
       </div>
 
+      {/* Degraded Storage Banner (Phase 2C) */}
+      {storageDegraded && !degradedDismissed && (
+        <div
+          role="status"
+          className="clay-sm p-3 border border-amber-600/50 bg-amber-950/30 text-amber-200 text-xs flex items-start gap-2.5 mt-2"
+        >
+          <span className="text-base">⚠️</span>
+          <span className="flex-1 leading-relaxed">{t('runner.degraded_banner')}</span>
+          <button
+            onClick={() => setDegradedDismissed(true)}
+            aria-label={t('runner.degraded_dismiss')}
+            className="text-amber-200 hover:text-white cursor-pointer touch-target transition-motion"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* 3. Bottom Primary Actions */}
       {(runnerState.phase === 'warmup' || runnerState.phase === 'exercise') && (
         <div className="flex flex-col gap-2 pt-2">
@@ -826,7 +936,9 @@ export const WorkoutRunnerScreen: React.FC<WorkoutRunnerScreenProps> = ({
       {/* Pause Dialog */}
       {showPauseModal && (
         <div
-          className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4"
+          ref={pauseDialogRef}
+          tabIndex={-1}
+          className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4 outline-none"
           role="dialog"
           aria-modal="true"
           aria-label={t('runner.pause_title')}
@@ -871,6 +983,7 @@ export const WorkoutRunnerScreen: React.FC<WorkoutRunnerScreenProps> = ({
             </p>
 
             <input
+              ref={abandonInputRef}
               type="text"
               value={abandonReason}
               onChange={(e) => setAbandonReason(e.target.value)}
@@ -882,7 +995,10 @@ export const WorkoutRunnerScreen: React.FC<WorkoutRunnerScreenProps> = ({
             <div className="flex items-center gap-2 pt-2">
               <ClayButton
                 variant="secondary"
-                onClick={() => setShowAbandonModal(false)}
+                onClick={() => {
+                  setShowAbandonModal(false);
+                  requestAnimationFrame(() => abandonTriggerRef.current?.focus());
+                }}
                 aria-label={t('common.cancel')}
                 className="flex-1 py-3 text-xs font-bold touch-target"
               >

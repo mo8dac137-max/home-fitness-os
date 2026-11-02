@@ -22,7 +22,8 @@ apps/web/
     │   ├── planService.test.ts (163 lines)
     │   ├── rtl.test.ts (80 lines)
     │   ├── sessionRunner.test.ts (330 lines)
-    │   └── workoutRunnerScreen.test.ts (125 lines)
+    │   ├── sessionRunnerHardening.test.ts (433 lines)
+    │   └── workoutRunnerScreen.test.ts (84 lines)
     ├── components/
     │   ├── Bar.tsx (54 lines)
     │   ├── BottomNav.tsx (86 lines)
@@ -41,16 +42,16 @@ apps/web/
     ├── engine/
     │   ├── engineContext.ts (86 lines)
     │   ├── planService.ts (250 lines)
-    │   └── sessionRunner.ts (450 lines)
+    │   └── sessionRunner.ts (669 lines)
     ├── i18n/
-    │   └── index.ts (396 lines)
+    │   └── index.ts (445 lines)
     ├── screens/
     │   ├── AppearanceLab.tsx (244 lines)
     │   ├── HomeScreen.tsx (380 lines)
     │   ├── MoreScreen.tsx (528 lines)
     │   ├── ProgressScreen.tsx (96 lines)
     │   ├── TrainScreen.tsx (428 lines)
-    │   └── WorkoutRunnerScreen.tsx (905 lines)
+    │   └── WorkoutRunnerScreen.tsx (1020 lines)
     ├── storage/
     │   ├── idb.ts (59 lines)
     │   ├── index.ts (4 lines)
@@ -63,8 +64,8 @@ apps/web/
 
 packages/
 ├── config/src/
-│   ├── index.ts (1228 lines)
-│   └── __tests__/config.test.ts (215 lines)
+│   ├── index.ts (1261 lines)
+│   └── __tests__/config.test.ts (235 lines)
 ├── contracts/src/
 │   ├── index.ts (422 lines)
 │   └── __tests__/contracts.test.ts (205 lines)
@@ -115,17 +116,27 @@ packages/
 ### Web App (`apps/web`)
 - **`App`**: Root orchestrator managing navigation, splash launch, engine plan bootstrap, active workout routing, and IndexedDB hydration.
 - **`HomeScreen`**: 7-day horizon strip, Day 0 locked hero workout card, consistency ring, and "Why this session?" rationale sheet.
-- **`WorkoutRunnerScreen`**: Full-screen active workout execution UI: phase tracking, isolated Rest countdown Ring, reps stepper, RPE selector, honest pain toggle, pause/abandon modal dialogs, wake lock, haptics, WebAudio rest chime.
+- **`WorkoutRunnerScreen`**: Full-screen active workout execution UI: phase tracking, isolated Rest countdown Ring, config-driven RPE selector, reps stepper, honest pain toggle, pause/abandon modal dialogs with focus management + Escape, wake lock with visibility re-acquisition, degraded-storage banner, haptics, WebAudio rest chime.
 - **`TrainScreen`**: Segmented control switching between active 7-day plan blueprint with day inspector and searchable exercise library.
 - **`ProgressScreen`**: Mastery score ring, rep target mastery, RPE effort tracking, and movement exposure window.
 - **`MoreScreen`**: Grouped navigation for Settings, Appearance Lab, Equipment, Data, and System Diagnostics.
 - **`AppearanceLab`**: Live preview with controls for accent presets, clay depth, corner radius, density, and haptics.
 - **`PlanService`**: Manages `getOrCreatePlan`, horizon sliding, day decision summaries, generation benchmarking, and event logging.
-- **`sessionRunner`**: Session runner state, `sessionReducer`, event emission (`session.started`, `session.set_logged`, `session.completed`, `session.abandoned`), dynamic rest computation, in-flight persistence.
+- **`sessionRunner`**: Session runner state, `sessionReducer`, event emission (`session.started`, `session.set_logged`, `session.completed`, `session.abandoned`), dynamic rest computation with ceiling-clamped extensions, in-flight persistence.
 
 ---
 
-## 3. Files Changed in this Task (Phase 2B)
+## 3. Files Changed in this Task (Phase 2C)
+- `packages/config/src/index.ts` (added `rpe_min`, `rpe_max`, `rpe_step` settings).
+- `packages/config/src/__tests__/config.test.ts` (Phase 2C RPE scale settings test).
+- `apps/web/src/engine/sessionRunner.ts` (EXTEND_REST ceiling clamp + no backward motion; `target_reps` added to `session.set_logged` payload; SKIP_SET-out-of-warmup fix so rest advances to the working exercise).
+- `apps/web/src/screens/WorkoutRunnerScreen.tsx` (config-driven RPE scale via `buildRpeOptions`; visibilitychange wake-lock re-acquisition + stale-deadline re-sync; degraded-storage banner; modal focus management + Escape; aria-live phase chip).
+- `apps/web/src/i18n/index.ts` (added `runner.degraded_banner`, `runner.degraded_dismiss` in both dicts).
+- `apps/web/src/__tests__/sessionRunnerHardening.test.ts` (12 behavioral reducer tests).
+- `apps/web/src/__tests__/workoutRunnerScreen.test.ts` (guard test 4 updated for config-driven RPE).
+- `docs/REPORT_PHASE2C.md`, `docs/STATE.md`.
+
+### Previous: Files Changed in Phase 2B
 - `apps/web/src/screens/WorkoutRunnerScreen.tsx` (UI for workout session execution).
 - `apps/web/src/screens/HomeScreen.tsx` (connected Day-0 card Start Workout to `onStartWorkout`).
 - `apps/web/src/App.tsx` (wired `activeWorkoutDay`, restored in-flight workout, hidden navigation during session).
@@ -138,22 +149,22 @@ packages/
 
 ## 4. Test Counts per Package
 
-Total: **20 test files, 165 tests passing**.
+Total: **21 test files, 178 tests passing**.
 - `packages/engine-core`: 71 tests (engine-core: 59, engine-honesty-e1a: 9, engine-guard: 1, numeric-literals: 1, smoke: 1)
 - `packages/contracts`: 21 tests
-- `packages/config`: 14 tests
+- `packages/config`: 15 tests
 - `packages/events`: 7 tests
 - `packages/library`: 9 tests (library: 7, smoke: 2)
 - `packages/sim`: 4 tests (simulation: 1, smoke: 3)
 - `packages/ports`: 1 test
-- `apps/web`: 38 tests (workoutRunnerScreen: 10, sessionRunner: 6, planService: 6, storage: 4, appearance: 5, rtl: 6, i18n-compliance: 1)
+- `apps/web`: 50 tests (sessionRunnerHardening: 12, workoutRunnerScreen: 10, sessionRunner: 6, planService: 6, storage: 4, appearance: 5, rtl: 6, i18n-compliance: 1)
 
 ---
 
 ## 5. Known Issues and TODOs
-- **Phase 2C (Next)**: Runner hardening, mid-rest reload recovery in UI, idempotency, ProgressScreen & HomeScreen history wiring.
-- **Phase 3**: Complete Arabic (100% dictionary coverage) + RTL audit.
+- **Phase 3 (Next)**: Complete Arabic (100% dictionary coverage) + RTL audit.
 - **Phase 4**: Supabase sync (Gated).
+- **Deferred**: ProgressScreen & HomeScreen history wiring from logged session events.
 
 ---
 
@@ -167,16 +178,19 @@ Total: **20 test files, 165 tests passing**.
 7. `warmup_sets_default` (default: 1)
 8. `cooldown_duration_minutes` (default: 5)
 9. `target_rpe_default` (default: 7.5)
-10. `readiness_checkin_weight` (default: 0.25)
-11. `rank_weight_priority_need` (default: 1.0)
-12. `rank_weight_stimulus_gap` (default: 1.0)
-13. `rank_weight_progression_need` (default: 1.0)
-14. `rank_weight_goal_weight` (default: 1.0)
-15. `rank_weight_schedule_fit` (default: 1.0)
-16. `rank_weight_readiness` (default: 1.0)
-17. `stimulus_gap_no_history` (default: 1.0)
-18. `progression_need_default` (default: 0.5)
-19. `readiness_default` (default: 0.8)
-20. `preferred_session_minutes` (default: 45)
-21. `min_eligible_patterns_per_unit` (default: 2)
-22. `unit_goal_weights` (object: strength/hypertrophy/endurance weights)
+10. `rpe_min` (default: 6.0)
+11. `rpe_max` (default: 9.5)
+12. `rpe_step` (default: 0.5)
+13. `readiness_checkin_weight` (default: 0.25)
+14. `rank_weight_priority_need` (default: 1.0)
+15. `rank_weight_stimulus_gap` (default: 1.0)
+16. `rank_weight_progression_need` (default: 1.0)
+17. `rank_weight_goal_weight` (default: 1.0)
+18. `rank_weight_schedule_fit` (default: 1.0)
+19. `rank_weight_readiness` (default: 1.0)
+20. `stimulus_gap_no_history` (default: 1.0)
+21. `progression_need_default` (default: 0.5)
+22. `readiness_default` (default: 0.8)
+23. `preferred_session_minutes` (default: 45)
+24. `min_eligible_patterns_per_unit` (default: 2)
+25. `unit_goal_weights` (object: strength/hypertrophy/endurance weights)

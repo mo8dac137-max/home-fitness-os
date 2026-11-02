@@ -204,6 +204,26 @@ describe('@hfos/config', () => {
       expect(config['rest_dynamic']).toBe(true);
     });
 
+    it('seeds Phase 2C RPE scale settings correctly', () => {
+      const config = getEffectiveConfig();
+      expect(config['rpe_min']).toBe(6.0);
+      expect(config['rpe_max']).toBe(9.5);
+      expect(config['rpe_step']).toBe(0.5);
+
+      // Bounds validation
+      expect(validateSettingValue('rpe_min', 3.5, 'user').valid).toBe(false);
+      expect(validateSettingValue('rpe_min', 6.0, 'user').valid).toBe(true);
+      expect(validateSettingValue('rpe_max', 10.5, 'user').valid).toBe(false);
+      expect(validateSettingValue('rpe_max', 9.5, 'user').valid).toBe(true);
+      expect(validateSettingValue('rpe_step', 0.1, 'user').valid).toBe(false);
+      expect(validateSettingValue('rpe_step', 0.5, 'user').valid).toBe(true);
+
+      // Typed accessor extraction
+      expect(requireNumber(config, 'rpe_min')).toBe(6.0);
+      expect(requireNumber(config, 'rpe_max')).toBe(9.5);
+      expect(requireNumber(config, 'rpe_step')).toBe(0.5);
+    });
+
     it('validates requireBoolean helper', () => {
       const testConfig = { is_active: true, is_flag: false, not_bool: 'yes' };
       expect(requireBoolean(testConfig, 'is_active')).toBe(true);

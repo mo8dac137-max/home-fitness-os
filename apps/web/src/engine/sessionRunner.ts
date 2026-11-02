@@ -325,9 +325,13 @@ export function sessionReducer(
             warmup_set_index: nextWarmupIndex,
           };
         } else {
+          // Warmup skipped/consumed: mark warmup_set_index at total so that
+          // SKIP_REST and AUTO_ADVANCE from the following rest return to the
+          // working exercise instead of bouncing back into warmup (Phase 2C fix).
           return {
             ...state,
             phase: 'exercise',
+            warmup_set_index: nextWarmupIndex,
             current_exercise_index: 0,
             current_set_index: 0,
             rest_deadline: null,
@@ -387,12 +391,17 @@ export function sessionReducer(
 
     case 'EXTEND_REST': {
       if (!state.rest_deadline) return state;
+      const restCeiling = requireNumber(config, 'rest_ceiling_seconds');
+      // Clamp the total rest (initial duration + accumulated extensions) to the
+      // configured ceiling, and never allow the deadline to move backwards.
+      const headroomSec = Math.max(0, restCeiling - state.rest_duration_seconds);
+      const allowedSec = Math.min(action.seconds, headroomSec);
+      if (allowedSec <= 0) return state;
       const currentDeadlineMs = Date.parse(state.rest_deadline);
-      const newDeadlineMs = currentDeadlineMs + action.seconds * 1000;
       return {
         ...state,
-        rest_duration_seconds: state.rest_duration_seconds + action.seconds,
-        rest_deadline: new Date(newDeadlineMs).toISOString(),
+        rest_duration_seconds: state.rest_duration_seconds + allowedSec,
+        rest_deadline: new Date(currentDeadlineMs + allowedSec * 1000).toISOString(),
       };
     }
 
@@ -584,6 +593,7 @@ export function generateSessionEvents(
         exercise_id: record.exercise_id,
         set_number: record.set_index + 1,
         reps: record.done_reps ?? record.target_reps,
+        target_reps: record.target_reps,
         rpe: record.rpe,
         pain: Boolean(record.pain),
         pattern,

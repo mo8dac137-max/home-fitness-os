@@ -26,11 +26,15 @@ describe('WorkoutRunnerScreen UI Static & Architectural Guard (Phase 2B)', () =>
     expect(fileContent).toContain('setHasPain');
   });
 
-  it('4. ensures RPE selector spans 6.0 to 9.5 with target highlighting', () => {
+  it('4. ensures RPE selector is config-driven with target highlighting', () => {
     expect(fileContent).toContain('runner.rpe_label');
     expect(fileContent).toContain('runner.rpe_explainer');
-    expect(fileContent).toContain('6.0');
-    expect(fileContent).toContain('9.5');
+    // RPE scale derives from @hfos/config (rpe_min / rpe_max / rpe_step) — Phase 2C
+    expect(fileContent).toContain('buildRpeOptions');
+    expect(fileContent).toContain('RPE_OPTIONS');
+    expect(fileContent).toContain("'rpe_min'");
+    expect(fileContent).toContain("'rpe_max'");
+    expect(fileContent).toContain("'rpe_step'");
   });
 
   it('5. ensures screen wake lock API is requested and released safely', () => {

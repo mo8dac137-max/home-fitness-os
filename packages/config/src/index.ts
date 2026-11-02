@@ -957,6 +957,40 @@ export const DEFAULT_SETTINGS: SettingDefinition[] = [
     version: '1.0.0',
     description: 'Default target RPE for working sets (6.0-9.5)',
   },
+  // Phase 2C RPE Selector Scale Settings
+  {
+    schema_version: 1,
+    key: 'rpe_min',
+    type: 'number',
+    default: 6.0,
+    bounds: { min: 4.0, max: 6.5 },
+    scope: 'user',
+    consumer: 'session_runner',
+    version: '1.0.0',
+    description: 'Minimum selectable RPE in the runner RPE selector (4.0-6.5)',
+  },
+  {
+    schema_version: 1,
+    key: 'rpe_max',
+    type: 'number',
+    default: 9.5,
+    bounds: { min: 9.0, max: 10.0 },
+    scope: 'user',
+    consumer: 'session_runner',
+    version: '1.0.0',
+    description: 'Maximum selectable RPE in the runner RPE selector (9.0-10.0)',
+  },
+  {
+    schema_version: 1,
+    key: 'rpe_step',
+    type: 'number',
+    default: 0.5,
+    bounds: { min: 0.25, max: 1.0 },
+    scope: 'user',
+    consumer: 'session_runner',
+    version: '1.0.0',
+    description: 'Step increment between selectable RPE values (0.25-1.0)',
+  },
 ];
 
 class SettingsRegistry {
