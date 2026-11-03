@@ -97,9 +97,9 @@ describe('phase 4D4: hook wiring guards', () => {
   });
 
   it('a failed status probe only leaves the facts unknown (informational)', () => {
-    expect(hook).toContain(
-      'patch({ activeDevices: status.data.active_devices, deviceRows: status.data.devices });',
-    );
+    expect(hook).toContain('activeDevices: status.data.active_devices,');
+    expect(hook).toContain('deviceRows: status.data.devices,');
+    expect(hook).toContain('revokedRows: status.data.revoked_devices,');
     expect(hook).not.toContain("deviceError: status.code");
   });
 
@@ -110,7 +110,7 @@ describe('phase 4D4: hook wiring guards', () => {
 
   it('signed-out resets clear the new device facts too', () => {
     expect(hook).toMatch(
-      /activeDevices: null,\s*\n\s*deviceRows: null,\s*\n\s*deviceId: null,\s*\n\s*lastSyncAt: null,/,
+      /activeDevices: null,\s*\n\s*deviceRows: null,\s*\n\s*revokedRows: null,\s*\n\s*deviceId: null,\s*\n\s*lastSyncAt: null,/,
     );
   });
 });

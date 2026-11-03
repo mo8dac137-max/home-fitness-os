@@ -155,6 +155,19 @@ export interface DeviceStatus {
    * the UI then falls back to the bare active_devices count.
    */
   devices: DeviceStatusRow[] | null;
+  /**
+   * Phase 4D9 contract extension: most recent revoked devices (audit trail,
+   * server caps at 10). null = the deployed function predates the extension
+   * (or sent garbage); the UI then shows no history section at all.
+   */
+  revoked_devices: RevokedDeviceRow[] | null;
+}
+
+export interface RevokedDeviceRow {
+  device_id: string;
+  label: string;
+  created_at: string | null;
+  revoked_at: string | null;
 }
 
 export interface DeviceStatusRow {
@@ -200,6 +213,7 @@ export async function fetchDeviceStatus(
       active_devices: active,
       session_verified: verified,
       devices: parseDeviceRows(d['devices']),
+      revoked_devices: parseRevokedRows(d['revoked_devices']),
     },
     http_status: res.http_status,
   };
@@ -226,6 +240,33 @@ export function parseDeviceRows(raw: unknown): DeviceStatusRow[] | null {
       label,
       created_at: typeof createdAt === 'string' ? createdAt : null,
       last_seen_at: typeof lastSeen === 'string' ? lastSeen : null,
+    });
+  }
+  return rows.length > 0 ? rows : null;
+}
+
+/**
+ * Phase 4D9: defensive parse of the optional `revoked_devices` array —
+ * mirrors `parseDeviceRows` exactly. Absent or malformed -> null (the UI
+ * shows no history section); malformed entries are dropped individually so
+ * one bad row never hides the rest.
+ */
+export function parseRevokedRows(raw: unknown): RevokedDeviceRow[] | null {
+  if (!Array.isArray(raw)) return null;
+  const rows: RevokedDeviceRow[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') continue;
+    const e = entry as Record<string, unknown>;
+    const id = e['id'];
+    const label = e['label'];
+    if (typeof id !== 'string' || id === '' || typeof label !== 'string') continue;
+    const createdAt = e['created_at'];
+    const revokedAt = e['revoked_at'];
+    rows.push({
+      device_id: id,
+      label,
+      created_at: typeof createdAt === 'string' ? createdAt : null,
+      revoked_at: typeof revokedAt === 'string' ? revokedAt : null,
     });
   }
   return rows.length > 0 ? rows : null;

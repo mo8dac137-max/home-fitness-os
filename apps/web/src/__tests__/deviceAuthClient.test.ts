@@ -414,8 +414,13 @@ describe('fetchDeviceStatus', () => {
     const res = await fetchDeviceStatus(CONFIG, TOKEN, { fetchImpl });
     expect(res.ok).toBe(true);
     if (res.ok) {
-      // a v1 payload (no devices key) degrades to null rows (Phase 4D5)
-      expect(res.data).toEqual({ active_devices: 1, session_verified: true, devices: null });
+      // a v1 payload (no optional row keys) degrades to null rows (4D5+4D9)
+      expect(res.data).toEqual({
+        active_devices: 1,
+        session_verified: true,
+        devices: null,
+        revoked_devices: null,
+      });
     }
   });
 

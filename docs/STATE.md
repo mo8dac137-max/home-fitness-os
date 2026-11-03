@@ -2,7 +2,7 @@
 
 > Source of truth for repo structure, package exports, test coverage, and active settings keys.
 >
-> Test totals in §4 include the Phase 4D8 task: 40 files / 366 tests.
+> Test totals in §4 include the Phase 4D9 task: 41 files / 376 tests.
 
 ---
 
@@ -25,8 +25,9 @@ apps/web/
     │   ├── cloudPhase4D4.test.ts (162 lines)
     │   ├── cloudPhase4D5.test.ts (271 lines)
     │   ├── cloudPhase4D6.test.ts (172 lines)
+    │   ├── cloudPhase4D9.test.ts (168 lines)
     │   ├── cloudWiring.test.ts (64 lines)
-    │   ├── deviceAuthClient.test.ts (483 lines)
+    │   ├── deviceAuthClient.test.ts (488 lines)
     │   ├── deviceFlow.test.ts (229 lines)
     │   ├── deviceKeys.test.ts (166 lines)
     │   ├── syncService.test.ts (158 lines)
@@ -51,7 +52,7 @@ apps/web/
     │   ├── Chip.tsx (59 lines)
     │   ├── ClayButton.tsx (54 lines)
     │   ├── ClayCard.tsx (27 lines)
-    │   ├── CloudAccountCard.tsx (423 lines)
+    │   ├── CloudAccountCard.tsx (466 lines)
     │   ├── CloudSyncCard.tsx (94 lines)
     │   ├── DayChip.tsx (77 lines)
     │   ├── EmptyState.tsx (48 lines)
@@ -68,7 +69,7 @@ apps/web/
     │   ├── planService.ts (305 lines)
     │   └── sessionRunner.ts (669 lines)
     ├── i18n/
-    │   └── index.ts (841 lines)
+    │   └── index.ts (845 lines)
     ├── screens/
     │   ├── AppearanceLab.tsx (324 lines)
     │   ├── HomeScreen.tsx (429 lines)
@@ -84,7 +85,7 @@ apps/web/
     │   └── __tests__/storage.test.ts (153 lines)
     ├── supabase/
     │   ├── authClient.ts (368 lines)
-    │   ├── deviceAuthClient.ts (452 lines)
+    │   ├── deviceAuthClient.ts (493 lines)
     │   ├── deviceFlow.ts (145 lines)
     │   ├── deviceKeyStore.ts (100 lines)
     │   ├── deviceKeys.ts (159 lines)
@@ -95,7 +96,7 @@ apps/web/
     │   ├── syncService.ts (99 lines)
     │   └── syncTriggers.ts (60 lines)
     ├── cloud/
-    │   └── useCloudSession.ts (480 lines)
+    │   └── useCloudSession.ts (497 lines)
     └── styles/
         ├── clay.css (73 lines)
         ├── tokens.css (104 lines)
@@ -170,6 +171,7 @@ packages/
 - **`AppearanceLab`**: Live preview with controls for the visual style variant (9 skins — clay/glass/neu/mono/neon/aurora/brutal/paper/oled — each a two-ring swatch tile), accent presets, clay depth, corner radius, density, and haptics.
 - **`CloudSyncCard`**: Honest cloud status card (More › About) — validates env config, probes the project's auth health endpoint once per mount, reports connected/unreachable/not-configured via i18n only.
 - **`CloudAccountCard`** (Phase 4D2/4D3): the account surface (More › About) — inline sign-in form, device verification/recovery states, one-time recovery-codes display, Sync now / Sign out, a two-step **Deauthorize this device** confirm with an honest failure line carrying the real server code, and honest sync-result/sync-failure lines; i18n-only copy, logical (RTL-safe) classes only.
+- **`CloudAccountCard` device rows** (Phase 4D5/4D6/4D9): the ready section leads with the server's per-device rows (label + `Added {date}` + last-seen fact + `This device` chip + per-row two-step revoke; current device routes to the 4D3 deauthorize flow), falls back to the bare count + short id on a v1 function, and closes with a **collapsed revoked-device history** (`Revoked devices ({count})` → read-only label + `Revoked {date}` lines, server-capped at 10) that renders only when the server reported revoked devices.
 - **`supabase/authClient`** (Phase 4D2): Supabase Auth REST client without supabase-js — `signInWithPassword`, `refreshSession`, `getValidSession` (pre-emptive refresh within a 60 s TTL margin; 4xx refresh rejections clear the session while transient network/5xx failures deliberately keep it), `signOut` (best-effort global logout, never blocks local sign-out); `AuthSessionStore` port with `InMemory` + `KeyValue` implementations and defensive rehydration.
 - **`supabase/deviceFlow`** (Phase 4D2): one idempotent state machine over the 4C primitives — `runDeviceFlow` (status → verified / enroll+verify with one-time codes / recovery_required with reasons) and `submitDeviceRecovery`; every outcome is data, server codes pass through verbatim.
 - **`sync/syncService`** (Phase 4D2): `syncNow` — push all local envelopes (idempotent by primary key) then pull remote rows and merge only genuinely new ones into the local `EventLog`, with honest pushed/duplicates/pulled/merged accounting.
@@ -178,13 +180,22 @@ packages/
 - **`supabase/env` + `supabase/probe`**: env-driven config plumbing (`readSupabaseEnv`, degrades to typed `missing`/`invalid_url`, never throws) and injected-I/O liveness probe (`probeCloudConnection`); no supabase-js dependency yet (lands with auth in 4B/4C).
 - **`supabase/deviceKeys`**: WebCrypto ECDSA P-256 device key core (Phase 4C) — `generateDeviceKeyPair` (private key non-extractable), `signNonce` (SHA-256 over the raw UTF-8 nonce, base64url out), `exportPublicJwk` (minimal `kty/crv/x/y` JWK), `isValidPublicDeviceJwk` (mirror of the server's `validPublicJwk`), and `verifyNonceSignature` (server-algorithm replica for tests).
 - **`supabase/deviceKeyStore`**: `DeviceKeyStore` port persisting the enrolled-device record (`device_id`, `label`, `public_jwk`, non-extractable `private_key` as a structured-cloned `CryptoKey` — never serialized to a string). `InMemoryDeviceKeyStore` for tests, `KeyValueDeviceKeyStore` over the app's IndexedDB `kv` store for the browser, with defensive rehydration (`storedDeviceRecordFromUnknown`).
-- **`supabase/deviceAuthClient`**: `device-auth` Edge Function client (Phase 4C) — `enrollCurrentDevice` (reuses orphaned key pairs; 409 passes through), `verifyCurrentDevice` (challenge → sign → verify, binding the auth `session_id` to a 12 h device session), `revokeCurrentDevice` (clears the local record on success), `recoverDevice` (fresh key pair + one-time recovery code), `fetchDeviceStatus`; plain fetch with injected I/O, discriminated results, server error codes surfaced verbatim (client-synthesized codes: `missing_token`, `bad_response`, `network_error`, `timeout`, `not_enrolled`, `signing_failed`).
+- **`supabase/deviceAuthClient`**: `device-auth` Edge Function client (Phase 4C) — `enrollCurrentDevice` (reuses orphaned key pairs; 409 passes through), `verifyCurrentDevice` (challenge → sign → verify, binding the auth `session_id` to a 12 h device session), `revokeCurrentDevice` (clears the local record on success), `recoverDevice` (fresh key pair + one-time recovery code), `fetchDeviceStatus` (parses the optional `devices` rows (4D5) and `revoked_devices` history (4D9) defensively — absent/malformed → null); plain fetch with injected I/O, discriminated results, server error codes surfaced verbatim (client-synthesized codes: `missing_token`, `bad_response`, `network_error`, `timeout`, `not_enrolled`, `signing_failed`); `revokeDeviceById` (4D6) revokes any device by id without touching the local key store.
 - **`PlanService`**: Manages `getOrCreatePlan`, horizon sliding, day decision summaries, generation benchmarking, and event logging.
 - **`sessionRunner`**: Session runner state, `sessionReducer`, event emission (`session.started`, `session.set_logged`, `session.completed`, `session.abandoned`), dynamic rest computation with ceiling-clamped extensions, in-flight persistence.
 
 ---
 
-## 3. Files Changed in this Task (Phase 4D8 — motion personality hint in the style picker)
+## 3. Files Changed in this Task (Phase 4D9 — revoked-device history in the account card)
+- `supabase/functions/device-auth/index.ts` (282 lines, additive contract extension): `status` now also answers `revoked_devices` — `id, label, created_at, revoked_at` for the user's revoked rows, newest first, capped at 10 — through the exact `activeDeviceRows` degrade pattern (any query failure → field omitted, status can never fail because of history); the 4D5 `devices` shape is untouched and old clients ignore the extra field.
+- `apps/web/src/supabase/deviceAuthClient.ts` (+41 lines: `RevokedDeviceRow`; `DeviceStatus.revoked_devices: rows | null`; `parseRevokedRows` mirroring `parseDeviceRows` — non-array → null, malformed entries dropped individually, non-string timestamps → null).
+- `apps/web/src/cloud/useCloudSession.ts` (+17 lines: `revokedRows` in state, mapped from the readiness-epoch status probe, cleared in all four reset paths — the exact lifecycle `deviceRows` already has).
+- `apps/web/src/components/CloudAccountCard.tsx` (+43 lines: a collapsed read-only audit section under the live rows — `Revoked devices ({count})` toggle with `aria-expanded`, label + `Revoked {date}` lines, `--` for a missing timestamp; renders only when the server actually reported revoked devices, so the currently deployed function keeps the card identical to 4D8).
+- `apps/web/src/i18n/index.ts` (2 new keys per dict: `account.revoked_devices_title` with `{count}` + `account.device_revoked_when` with `{date}`; dicts now 362/362).
+- `apps/web/src/__tests__/cloudPhase4D9.test.ts` (new, 10 tests) + churn guards updated for the widened contract (`deviceAuthClient.test.ts` v1 pin gains `revoked_devices: null`; `cloudPhase4D4`/`4D5` reset-path pins accept the `revokedRows` line).
+- `docs/REPORT_PHASE4D9.md`, `docs/STATE.md`.
+
+### Previous: Files Changed in this Task (Phase 4D8 — motion personality hint in the style picker)
 - `apps/web/src/appearance.ts` (+6 lines: `MotionPersonality` gains `labelKey: string` — one `appearance.motion_<id>` key per skin; plain string, `appearance.ts` never imports i18n, the call site casts through `I18nKey` like the existing `STYLE_PRESETS.labelKey` pattern).
 - `apps/web/src/i18n/index.ts` (10 new keys per dict: the `appearance.motion_hint` template with the `{character}` placeholder + nine character labels — e.g. en "Unhurried glide" / ar "انزلاق متأنٍ"; the global placeholder-parity guard now covers `{character}` too).
 - `apps/web/src/screens/AppearanceLab.tsx` (+9 lines: every style-picker tile renders `t('appearance.motion_hint').replace('{character}', t(labelKey))` as a 9px 80%-opacity caption under the skin name — the manual placeholder pattern 4D6 established; the picker stays WYSIWYG so the caption describes the tile's own skin).
@@ -332,7 +343,7 @@ packages/
 
 ## 4. Test Counts per Package
 
-Total: **40 test files, 366 tests passing**.
+Total: **41 test files, 376 tests passing**.
 - `packages/engine-core`: 71 tests (engine-core: 59, engine-honesty-e1a: 9, engine-guard: 1, numeric-literals: 1, smoke: 1)
 - `packages/contracts`: 21 tests
 - `packages/config`: 16 tests
@@ -340,7 +351,7 @@ Total: **40 test files, 366 tests passing**.
 - `packages/library`: 9 tests (library: 7, smoke: 2)
 - `packages/sim`: 4 tests (simulation: 1, smoke: 3)
 - `packages/ports`: 1 test
-- `apps/web`: 222 tests (deviceAuthClient: 25, sessionRunnerHardening: 12, authClient: 14, deviceFlow: 9, deviceKeys: 10, historyService: 9, workoutRunnerScreen: 10, planService: 9, syncTransport: 7, syncService: 6, supabaseProbe: 5, cloudWiring: 5, cloudPhase4D3: 7, cloudPhase4D4: 16, cloudPhase4D5: 21, cloudPhase4D6: 13, sessionRunner: 6, storage: 4, appearance: 12, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
+- `apps/web`: 232 tests (deviceAuthClient: 25, sessionRunnerHardening: 12, authClient: 14, deviceFlow: 9, deviceKeys: 10, historyService: 9, workoutRunnerScreen: 10, planService: 9, syncTransport: 7, syncService: 6, supabaseProbe: 5, cloudWiring: 5, cloudPhase4D3: 7, cloudPhase4D4: 16, cloudPhase4D5: 21, cloudPhase4D6: 13, cloudPhase4D9: 10, sessionRunner: 6, storage: 4, appearance: 12, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
 
 ---
 
@@ -361,9 +372,10 @@ Total: **40 test files, 366 tests passing**.
 - **Done (Phase 4D6)**: per-device revoke + added-when + CORS allow-list — the Account card's device rows now carry a Revoke affordance (current device routes to the existing 4D3 deauthorize flow; other devices get a two-step inline confirm through the new `revokeDevice` hook action → `revokeDeviceById`, which never touches the local key store); rows lead with `Added {date}` next to the last-seen fact; the server's `revoke` answers `404 unknown_or_revoked_device` for unknown/already-revoked ids instead of a fake `ok`; CORS builds per request from the optional `DEVICE_AUTH_ALLOWED_ORIGINS` env allow-list (the spike's `*` stays when unset — M0-15b); 5 new i18n keys in both dicts. 13 new tests (total 351), bundle 141.96/300 KB.
 - **Done (Phase 4D7)**: per-skin motion personality — JS owns a per-skin `durationScale` (brutal 0.7 stamps … aurora 1.2 drifts, clay baseline 1 byte-identical) applied to all six motion tokens (three new: enter/draw/stagger), CSS owns the character (per-skin `--motion-timing` curves; signature `glassEnter` breath and `brutalStamp` no-fade enter via `animation-name` overrides), and a pre-existing honesty gap closed: the hardcoded 220/900/50ms animation durations now consume tokens, so the in-app `motion: 'reduced'` setting truly stops everything. No component branches on the style; no new UI or i18n; pure client phase — no owner action. 10 new tests (total 361), bundle 142.10/300 KB.
 - **Done (Phase 4D8)**: motion personality hint in the style picker — every skin tile in the Appearance Lab now captions its motion character (`Motion: {character}` / `الحركة: {character}`, e.g. "Unhurried glide" / "انزلاق متأنٍ") resolved from the new per-skin `labelKey` through 10 new keys per dict; manual placeholder replacement per the 4D6 `{date}` pattern; no persistence, no branching on the style, no in-tile animation (the app already repaints WYSIWYG). Pure client phase — no owner action. 5 new tests (total 366), bundle 142.43/300 KB.
-- **Deployment note**: nothing to deploy server-side for 4C/4D2/4D3 beyond two owner actions — (1) apply `supabase/migrations/20261104000000_p4d3_cleanup_expired_device_auth.sql` in the SQL editor (optionally schedule it with the included pg_cron snippet), and (2) provide a test user for the live E2E rehearsal (`npm run e2e:live`, see `docs/REPORT_LIVE_E2E.md`): a dashboard-created user with Auto Confirm ✔ (option A, full 26 stations) or temporarily enabling anonymous sign-ins (option B, 23 stations). The project correctly ships with open signups and the anonymous provider disabled (re-confirmed live: `422 signup_disabled`, `422 anonymous_provider_disabled`). 4D6 adds a third owner action: redeploy `device-auth` again (the honest-404 revoke + CORS allow-list source) — safe either way, the client tolerates the old bare-ok answers; optional hardening: set `DEVICE_AUTH_ALLOWED_ORIGINS` to the production origin in the function's secrets. 4D7 adds nothing server-side (pure client: CSS + one JS map). 4D8 likewise adds nothing server-side (pure client: one UI field + i18n keys).
+- **Done (Phase 4D9)**: revoked-device history — the account card closes its device section with a collapsed, read-only audit trail (`Revoked devices ({count})` → label + `Revoked {date}` lines, newest first, server-capped at 10); the server's `status` answers an additive `revoked_devices` array through the exact 4D5 degrade pattern (query failure → field omitted, status never fails because of history), and the client parses it defensively (absent/malformed → null → no section). Until the pending function redeploy lands, the section simply stays hidden — everything else is identical. No un-revoke: regaining access remains a recovery-code flow. 2 new i18n keys per dict (dicts 362/362). 10 new tests (total 376), bundle 142.67/300 KB.
+- **Deployment note**: nothing to deploy server-side for 4C/4D2/4D3 beyond two owner actions — (1) apply `supabase/migrations/20261104000000_p4d3_cleanup_expired_device_auth.sql` in the SQL editor (optionally schedule it with the included pg_cron snippet), and (2) provide a test user for the live E2E rehearsal (`npm run e2e:live`, see `docs/REPORT_LIVE_E2E.md`): a dashboard-created user with Auto Confirm ✔ (option A, full 26 stations) or temporarily enabling anonymous sign-ins (option B, 23 stations). The project correctly ships with open signups and the anonymous provider disabled (re-confirmed live: `422 signup_disabled`, `422 anonymous_provider_disabled`). 4D6 adds a third owner action: redeploy `device-auth` again (the honest-404 revoke + CORS allow-list source) — safe either way, the client tolerates the old bare-ok answers; optional hardening: set `DEVICE_AUTH_ALLOWED_ORIGINS` to the production origin in the function's secrets. 4D7 adds nothing server-side (pure client: CSS + one JS map). 4D8 likewise adds nothing server-side (pure client: one UI field + i18n keys). 4D9's only server-side piece (the `revoked_devices` status extension) rides that same still-pending redeploy — one action ships 4D6 + 4D9 together; until then the history section stays hidden by design.
 - **Push note**: `c03acb5` (e2e tooling) + `c8d5e97` (Phase 4D3) were pushed to `origin/main` and CI finished green (run for `c8d5e97`, all steps success, ~38 s — the repo's normal duration).
-- **Possible next (4D9 candidates)**: surfacing per-device revoked history (needs a query surface for revoked rows, currently only non-revoked devices render); a revoke-confirmation second factor (product decision — the verified device session already gates the action); cursor-based pull only if the event log ever grows (currently a deliberate full pull); pg_cron scheduling of the expired-session cleanup (still blocked on the owner confirming pg_cron availability).
+- **Possible next (4D10 candidates)**: a revoke-confirmation second factor (product decision — the verified device session plus the 4D6 two-step confirm already gate the action); cursor-based pull only if the event log ever grows (currently a deliberate full pull); pg_cron scheduling of the expired-session cleanup (still blocked on the owner confirming pg_cron availability); the revoked-history section is delivered by 4D9 and only needs the pending `device-auth` redeploy to become visible.
 
 ---
 

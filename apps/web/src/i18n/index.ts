@@ -400,6 +400,8 @@ export const enDict = {
   'account.device_revoke_hint': 'This removes that device’s access on the server. It can regain access with a recovery code.',
   'account.device_revoke_confirm': 'Yes, revoke',
   'account.device_revoke_failed': 'Revocation failed ({code}).',
+  'account.revoked_devices_title': 'Revoked devices ({count})',
+  'account.device_revoked_when': 'Revoked {date}',
 };
 
 
@@ -804,6 +806,8 @@ export const arDict: Record<keyof typeof enDict, string> = {
   'account.device_revoke_hint': 'سيُلغي هذا مفتاح ذلك الجهاز على الخادم. يمكنه استعادة الوصول باستخدام رمز استرداد.',
   'account.device_revoke_confirm': 'نعم، إلغاء التوثيق',
   'account.device_revoke_failed': 'فشل إلغاء التوثيق ({code}).',
+  'account.revoked_devices_title': 'الأجهزة المُبطلة ({count})',
+  'account.device_revoked_when': 'أُبطل في {date}',
 };
 
 

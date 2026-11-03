@@ -198,7 +198,10 @@ describe('phase 4D5: device rows wiring guards', () => {
     const hook = read('../cloud/useCloudSession.ts');
     expect(hook).toContain('deviceRows: DeviceStatusRow[] | null');
     expect(hook).toContain('deviceRows: status.data.devices');
-    expect(hook).toMatch(/deviceRows: null,\s*\n\s*deviceId: null,\s*\n\s*lastSyncAt: null,/);
+    // 4D9 slipped revokedRows between the rows and the id in every reset path
+    expect(hook).toMatch(
+      /deviceRows: null,\s*\n\s*revokedRows: null,\s*\n\s*deviceId: null,\s*\n\s*lastSyncAt: null,/,
+    );
   });
 
   it('the card leads with server rows and keeps the v1 fallback intact', () => {

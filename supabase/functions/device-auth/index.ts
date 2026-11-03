@@ -132,6 +132,24 @@ Deno.serve(async (req) => {
       return null; // pre-migration database: fall back to the bare count
     }
   }
+  // Phase 4D9: the most recent revoked devices (audit trail for the account
+  // card's collapsed history section). Additive + degrading exactly like
+  // activeDeviceRows: any failure answers null and the field is omitted, so
+  // an older database can never fail a status call. Bounded at 10 rows —
+  // revocations are rare, and history beyond the recent window is noise.
+  async function revokedDeviceRows(): Promise<Record<string, unknown>[] | null> {
+    try {
+      const { data, error } = await admin.from('authorized_devices')
+        .select('id, label, created_at, revoked_at')
+        .eq('user_id', userId).not('revoked_at', 'is', null)
+        .order('revoked_at', { ascending: false })
+        .limit(10);
+      if (error || !data) return null;
+      return data as Record<string, unknown>[];
+    } catch {
+      return null; // pre-migration database: the field is simply omitted
+    }
+  }
   async function sessionVerified(): Promise<boolean> {
     const { data } = await admin.from('device_sessions')
       .select('expires_at, revoked_at')
@@ -160,10 +178,12 @@ Deno.serve(async (req) => {
   try {
     if (action === 'status') {
       const devices = await activeDeviceRows();
+      const revoked = await revokedDeviceRows();
       return json(req, 200, {
         active_devices: devices ? devices.length : await activeDeviceCount(),
         session_verified: await sessionVerified(),
         ...(devices !== null ? { devices } : {}),
+        ...(revoked !== null ? { revoked_devices: revoked } : {}),
       });
     }
 

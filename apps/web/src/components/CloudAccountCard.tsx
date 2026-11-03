@@ -67,6 +67,9 @@ export const CloudAccountCard: React.FC<{ cloud: CloudSessionHandle }> = ({ clou
   const [recoveryCode, setRecoveryCode] = useState('');
   const [confirmDeauth, setConfirmDeauth] = useState(false);
   const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
+  // Phase 4D9: the revoked-device history is collapsed by default — it is
+  // an audit trail, not a primary control.
+  const [showRevoked, setShowRevoked] = useState(false);
 
   const handleSignIn = (e: React.FormEvent): void => {
     e.preventDefault();
@@ -309,6 +312,46 @@ export const CloudAccountCard: React.FC<{ cloud: CloudSessionHandle }> = ({ clou
                 )}
               </div>
             )
+          )}
+          {/* Phase 4D9: revoked-device history — a collapsed audit trail under
+              the live rows. Renders only when the server actually reported
+              revoked devices (older function -> null -> nothing shows), and
+              every line renders only when its fact is actually known. */}
+          {cloud.revokedRows !== null && cloud.revokedRows.length > 0 && (
+            <div className="flex flex-col gap-1.5 pt-2 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => setShowRevoked((v) => !v)}
+                className="flex items-center justify-between gap-2 w-full cursor-pointer"
+                aria-expanded={showRevoked}
+              >
+                <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wide">
+                  {t('account.revoked_devices_title').replace('{count}', String(cloud.revokedRows.length))}
+                </span>
+                <span className="text-[10px] text-[var(--muted)]" aria-hidden>
+                  {showRevoked ? '−' : '+'}
+                </span>
+              </button>
+              {showRevoked && (
+                <ul className="flex flex-col gap-1">
+                  {cloud.revokedRows.map((row) => (
+                    <li
+                      key={row.device_id}
+                      className="flex items-center justify-between gap-2 min-w-0"
+                    >
+                      <span className="text-[10px] text-[var(--muted)] truncate" dir="ltr">
+                        {row.label}
+                      </span>
+                      <span className="text-[9px] text-[var(--muted)] ltr-num shrink-0">
+                        {row.revoked_at !== null
+                          ? t('account.device_revoked_when').replace('{date}', formatDate(row.revoked_at))
+                          : '--'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
           {cloud.lastSyncAt !== null && (
             <p className="text-[10px] text-[var(--muted)] ltr-num">

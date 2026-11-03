@@ -16,6 +16,7 @@ import {
   revokeCurrentDevice,
   revokeDeviceById,
   type DeviceStatusRow,
+  type RevokedDeviceRow,
 } from '../supabase/deviceAuthClient.js';
 import { KeyValueDeviceKeyStore } from '../supabase/deviceKeyStore.js';
 import { syncNow, type SyncSummary } from '../sync/syncService.js';
@@ -51,6 +52,8 @@ export interface CloudSessionState {
   activeDevices: number | null;
   /** Per-device rows from the server (null = contract v1 or unknown). */
   deviceRows: DeviceStatusRow[] | null;
+  /** Phase 4D9: recent revoked devices (null = contract predates 4D9 or unknown). */
+  revokedRows: RevokedDeviceRow[] | null;
   /** This browser's enrolled device id (informational, from the key store). */
   deviceId: string | null;
   /** Wall-clock ms of the last completed sync round (null = never). */
@@ -86,6 +89,7 @@ const INITIAL: CloudSessionState = {
   syncBusy: false,
   activeDevices: null,
   deviceRows: null,
+  revokedRows: null,
   deviceId: null,
   lastSyncAt: null,
   revokeError: null,
@@ -102,6 +106,7 @@ const SIGNED_OUT_RESET: Partial<CloudSessionState> = {
   busy: false,
   activeDevices: null,
   deviceRows: null,
+  revokedRows: null,
   deviceId: null,
   lastSyncAt: null,
   revokeError: null,
@@ -276,6 +281,7 @@ export function useCloudSession(): CloudSessionHandle {
       lastSync: null,
       activeDevices: null,
       deviceRows: null,
+      revokedRows: null,
       deviceId: null,
       lastSyncAt: null,
       revokeError: null,
@@ -386,7 +392,11 @@ export function useCloudSession(): CloudSessionHandle {
     // informational only: a failed status probe just leaves the facts unknown
     const status = await fetchDeviceStatus(env.config, token);
     if (status.ok) {
-      patch({ activeDevices: status.data.active_devices, deviceRows: status.data.devices });
+      patch({
+        activeDevices: status.data.active_devices,
+        deviceRows: status.data.devices,
+        revokedRows: status.data.revoked_devices,
+      });
     }
   }, [patch]);
 
@@ -394,7 +404,14 @@ export function useCloudSession(): CloudSessionHandle {
     if (state.stage === 'signed_out') {
       if (deviceInfoEpochRef.current) {
         deviceInfoEpochRef.current = false;
-        patch({ activeDevices: null, deviceRows: null, deviceId: null, lastSyncAt: null, revokeError: null });
+        patch({
+          activeDevices: null,
+          deviceRows: null,
+          revokedRows: null,
+          deviceId: null,
+          lastSyncAt: null,
+          revokeError: null,
+        });
       }
       return;
     }
