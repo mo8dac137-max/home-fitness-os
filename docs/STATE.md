@@ -2,7 +2,7 @@
 
 > Source of truth for repo structure, package exports, test coverage, and active settings keys.
 >
-> Test totals in §4 include the Appearance Skins task: 35 files / 301 tests.
+> Test totals in §4 include the Phase 4D4 task: 36 files / 317 tests.
 
 ---
 
@@ -45,7 +45,7 @@ apps/web/
     │   ├── Chip.tsx (59 lines)
     │   ├── ClayButton.tsx (54 lines)
     │   ├── ClayCard.tsx (27 lines)
-    │   ├── CloudAccountCard.tsx (229 lines)
+    │   ├── CloudAccountCard.tsx (314 lines)
     │   ├── CloudSyncCard.tsx (94 lines)
     │   ├── DayChip.tsx (77 lines)
     │   ├── EmptyState.tsx (48 lines)
@@ -86,9 +86,10 @@ apps/web/
     │   ├── probe.ts (56 lines)
     │   └── syncTransport.ts (280 lines)
     ├── sync/
-    │   └── syncService.ts (99 lines)
+    │   ├── syncService.ts (99 lines)
+    │   └── syncTriggers.ts (60 lines)
     ├── cloud/
-    │   └── useCloudSession.ts (286 lines)
+    │   └── useCloudSession.ts (435 lines)
     └── styles/
         ├── clay.css (73 lines)
         ├── tokens.css (93 lines)
@@ -166,7 +167,8 @@ packages/
 - **`supabase/authClient`** (Phase 4D2): Supabase Auth REST client without supabase-js — `signInWithPassword`, `refreshSession`, `getValidSession` (pre-emptive refresh within a 60 s TTL margin; 4xx refresh rejections clear the session while transient network/5xx failures deliberately keep it), `signOut` (best-effort global logout, never blocks local sign-out); `AuthSessionStore` port with `InMemory` + `KeyValue` implementations and defensive rehydration.
 - **`supabase/deviceFlow`** (Phase 4D2): one idempotent state machine over the 4C primitives — `runDeviceFlow` (status → verified / enroll+verify with one-time codes / recovery_required with reasons) and `submitDeviceRecovery`; every outcome is data, server codes pass through verbatim.
 - **`sync/syncService`** (Phase 4D2): `syncNow` — push all local envelopes (idempotent by primary key) then pull remote rows and merge only genuinely new ones into the local `EventLog`, with honest pushed/duplicates/pulled/merged accounting.
-- **`cloud/useCloudSession`** (Phase 4D2/4D3): thin React glue — stages (checking/signed_out/device_flow/recovery/ready), mount-time restore + device-flow convergence, sign-in/recovery/sign-out actions, `sync()` with one re-verify retry when a 12 h device session lapsed, one **auto-sync per readiness transition** (re-arms only after `signed_out`), and `deauthorize()` (server revoke → local key clear → sign-out; a failed revoke never pretends success); the app stays fully usable signed out.
+- **`sync/syncTriggers`** (Phase 4D4): the opportunistic auto-sync policy — `shouldSync({ ready, busy })` + `markStarted()`, gated on readiness and in-flight rounds, rate-limited to one round per `MIN_AUTO_SYNC_INTERVAL_MS` (30 s); pure and dependency-injected (fake clock in tests).
+- **`cloud/useCloudSession`** (Phase 4D2/4D3/4D4): thin React glue — stages (checking/signed_out/device_flow/recovery/ready), mount-time restore + device-flow convergence, sign-in/recovery/sign-out actions, `sync()` with one re-verify retry when a 12 h device session lapsed, one **auto-sync per readiness transition** (re-arms only after `signed_out`) plus **opportunistic rounds on `visibilitychange`/`online` through the trigger policy**, a once-per-readiness-epoch **device-info refresh** (local enrolled device id + server `active_devices` count), `lastSyncAt` stamping on every completed round, and `deauthorize()` (server revoke → local key clear → sign-out; a failed revoke never pretends success); the app stays fully usable signed out.
 - **`supabase/env` + `supabase/probe`**: env-driven config plumbing (`readSupabaseEnv`, degrades to typed `missing`/`invalid_url`, never throws) and injected-I/O liveness probe (`probeCloudConnection`); no supabase-js dependency yet (lands with auth in 4B/4C).
 - **`supabase/deviceKeys`**: WebCrypto ECDSA P-256 device key core (Phase 4C) — `generateDeviceKeyPair` (private key non-extractable), `signNonce` (SHA-256 over the raw UTF-8 nonce, base64url out), `exportPublicJwk` (minimal `kty/crv/x/y` JWK), `isValidPublicDeviceJwk` (mirror of the server's `validPublicJwk`), and `verifyNonceSignature` (server-algorithm replica for tests).
 - **`supabase/deviceKeyStore`**: `DeviceKeyStore` port persisting the enrolled-device record (`device_id`, `label`, `public_jwk`, non-extractable `private_key` as a structured-cloned `CryptoKey` — never serialized to a string). `InMemoryDeviceKeyStore` for tests, `KeyValueDeviceKeyStore` over the app's IndexedDB `kv` store for the browser, with defensive rehydration (`storedDeviceRecordFromUnknown`).
@@ -176,7 +178,15 @@ packages/
 
 ---
 
-## 3. Files Changed in this Task (Appearance Skins Lab — style picker + 4 new skins)
+## 3. Files Changed in this Task (Phase 4D4 — opportunistic auto-sync + honest device facts)
+- `apps/web/src/sync/syncTriggers.ts` (new, 60 lines: the pure trigger policy — `shouldSync({ ready, busy })` + `markStarted()`, never fires while not ready or a round is in flight, rate-limited to one round per `MIN_AUTO_SYNC_INTERVAL_MS` (30 s); injectable clock + interval for tests; deliberately trigger-agnostic with the extension point documented).
+- `apps/web/src/cloud/useCloudSession.ts` (+149 lines: one mount-scoped effect listening to `window online` + `document visibilitychange` (visible-only), routed through the policy via a `stateRef` snapshot and reusing the existing `sync()`; the Phase 4D3 cold-start round now feeds the same limiter (`markStarted()`) so a quick background/foreground cannot double-fire; a once-per-readiness-epoch device-info refresh — `loadEnrolledDeviceId` from the local key store + `fetchDeviceStatus` for the server's `active_devices` count, failed probes stay informational (count unknown, no error noise), facts reset + epoch re-arms on `signed_out`; `lastSyncAt: Date.now()` stamped on every completed round; `activeDevices`/`deviceId`/`lastSyncAt` added to state, `INITIAL`, `SIGNED_OUT_RESET`, and every sign-out path).
+- `apps/web/src/components/CloudAccountCard.tsx` (ready section: three null-guarded fact lines — `Active devices: {count}` (server truth), `This device · {id}` (8-char mono/LTR, full id as `title`), `Last sync {time}` (HH:mm via `formatClock`); each renders only when its fact is actually known).
+- `apps/web/src/i18n/index.ts` (3 new keys in both dicts: `account.active_devices`, `account.this_device`, `account.last_sync`; now 271/271 parity).
+- `apps/web/src/__tests__/cloudPhase4D4.test.ts` (new, 16 tests: 6 policy unit tests on an injected fake clock — readiness/busy gates, rate-limit window open/close, busy gate beyond the window, 30 s default; 6 hook wiring guards — both listeners + cleanup + visible-only, policy routing with exactly two `markStarted()` sites, epoch-scoped device-info refresh, silent status-probe failure, 3 `lastSyncAt` stamps, signed-out resets; 2 card guards — all three facts null-guarded + short id with full title; 2 i18n guards — both dicts non-empty + placeholder parity).
+- `docs/REPORT_PHASE4D4.md`, `docs/STATE.md`.
+
+### Previous: Files Changed in this Task (Appearance Skins Lab — style picker + 4 new skins)
 - `apps/web/src/styles/skins/` (8 files): the four inherited skins (`glass`, `neu`, `mono`, `neon` — landed uncommitted by a prior session, now committed) plus four new skins `aurora`, `brutal`, `paper`, `oled`. Every skin overrides the same five recipe classes (`.clay`, `.clay-sm`, `.clay-pressed`, `.clay-accent`, `.clay-flat`) under `html[data-style=…]` — no component branches on the active style; each file carries its own performance budget (no backdrop-filter outside the glass budget, no animated box-shadow, blur-free hard shadows on brutal, zero-bloom hairlines on oled).
 - `apps/web/src/appearance.ts`: `StyleVariant` + `STYLE_VARIANTS` grew to 9 variants; the single neu ink-safe mix became `INK_SAFE_ACCENT_MIX` (per-skin targets: neu `#2a3050`, paper `#3d3229`, brutal `#26251c`) consumed by `accentValueForStyle`; new `STYLE_PRESETS` (label key + two-ring swatch colors per skin).
 - `apps/web/src/index.css`: imports all 8 skin stylesheets (activated by `data-style`, always shipped, zero JS cost).
@@ -279,7 +289,7 @@ packages/
 
 ## 4. Test Counts per Package
 
-Total: **35 test files, 301 tests passing**.
+Total: **36 test files, 317 tests passing**.
 - `packages/engine-core`: 71 tests (engine-core: 59, engine-honesty-e1a: 9, engine-guard: 1, numeric-literals: 1, smoke: 1)
 - `packages/contracts`: 21 tests
 - `packages/config`: 16 tests
@@ -287,7 +297,7 @@ Total: **35 test files, 301 tests passing**.
 - `packages/library`: 9 tests (library: 7, smoke: 2)
 - `packages/sim`: 4 tests (simulation: 1, smoke: 3)
 - `packages/ports`: 1 test
-- `apps/web`: 172 tests (deviceAuthClient: 25, sessionRunnerHardening: 12, authClient: 14, deviceFlow: 9, deviceKeys: 10, historyService: 9, workoutRunnerScreen: 10, planService: 9, syncTransport: 7, syncService: 6, supabaseProbe: 5, cloudWiring: 5, cloudPhase4D3: 7, sessionRunner: 6, storage: 4, appearance: 12, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
+- `apps/web`: 188 tests (deviceAuthClient: 25, sessionRunnerHardening: 12, authClient: 14, deviceFlow: 9, deviceKeys: 10, historyService: 9, workoutRunnerScreen: 10, planService: 9, syncTransport: 7, syncService: 6, supabaseProbe: 5, cloudWiring: 5, cloudPhase4D3: 7, cloudPhase4D4: 16, sessionRunner: 6, storage: 4, appearance: 12, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
 
 ---
 
@@ -303,9 +313,10 @@ Total: **35 test files, 301 tests passing**.
 - **Done (E1b residuals)**: honest UI + persistent device id — plan/session events carry a persistent UUIDv7 device id (`hfos.device_id` in kv) instead of `redmi12_client`/`device-redmi12-local`; decision summaries derive unit from `PlanDay.unit`, reasons from the day's DecisionRecord term_values (top-3 real contributions as i18n keys + 0–100 chips) or `reason_code`, real `revision_reason` passthrough, defaulted-inputs honesty banner; fixed `SystemIdGenerator` malformed-UUID bug (10-char final group). 3 new tests (total 287), CI green.
 - **Done (Appearance Skins)**: the visual style system is complete and reachable — 9 skins (clay/glass/neu/mono/neon inherited + new aurora/brutal/paper/oled), a swatch style picker in the Appearance Lab (the skins previously shipped with no UI to switch them), per-skin ink-safe accent mixing on light skins, and the tokenized app shell + `--accent-ink` token that the live browser rehearsal proved necessary (the hardcoded clay shell had every light skin floating on black). 12 new tests (total 301; the inherited plumbing had left the old appearance tests failing locally), live-verified in a real browser: all 9 tiles switch `data-style`, the choice survives reload, light skins paint their own page background; bundle 139.84/300 KB.
 - **Done (Phase 4D3)**: auto-sync on start (one `sync()` per readiness transition, re-armed after sign-out), honest deauthorize action surfaced in the Account card (server revoke → local key clear → sign-out; a failed revoke keeps the user verified and shows the real code — only `not_enrolled` falls through), and the expired-challenge/session cleanup migration landed (owner-applied). 7 new tests (total 294), bundle 139.09/300 KB.
+- **Done (Phase 4D4)**: opportunistic auto-sync + honest device facts — a pure trigger policy (`syncTriggers`, 30 s rate limit, readiness/busy gates) drives `visibilitychange`/`online` rounds through the existing `sync()` path; the 4D3 cold-start round feeds the same limiter; the Account card's ready section now shows the server's `active_devices` count, this browser's short device id, and a `Last sync HH:mm` stamp from `lastSyncAt` (stamped on every completed round, honest failures included); 3 new i18n keys in both dicts. 16 new tests (total 317), bundle 140.51/300 KB.
 - **Deployment note**: nothing to deploy server-side for 4C/4D2/4D3 beyond two owner actions — (1) apply `supabase/migrations/20261104000000_p4d3_cleanup_expired_device_auth.sql` in the SQL editor (optionally schedule it with the included pg_cron snippet), and (2) provide a test user for the live E2E rehearsal (`npm run e2e:live`, see `docs/REPORT_LIVE_E2E.md`): a dashboard-created user with Auto Confirm ✔ (option A, full 26 stations) or temporarily enabling anonymous sign-ins (option B, 23 stations). The project correctly ships with open signups and the anonymous provider disabled (re-confirmed live: `422 signup_disabled`, `422 anonymous_provider_disabled`).
 - **Push note**: `c03acb5` (e2e tooling) + `c8d5e97` (Phase 4D3) were pushed to `origin/main` and CI finished green (run for `c8d5e97`, all steps success, ~38 s — the repo's normal duration).
-- **Possible next (4D4 candidates)**: auto-sync on `visibilitychange`/reconnect (currently: app-start readiness + workout completion + manual Sync now), surfacing server-side `active_devices`/last-seen in the Account card, and wiring the cleanup function into a real scheduled job once pg_cron availability is confirmed on the project.
+- **Possible next (4D5 candidates)**: per-device rows in the Account card (id/label/last-seen per device) — needs a `device-auth` status payload change plus a function redeploy (owner action); wiring the cleanup migration into a real pg_cron schedule once availability is confirmed on the project; auto dark/light skin switching via `prefers-color-scheme` (candidate carried from the Appearance Skins non-goals); cursor-based pull only if the event log ever grows (currently a deliberate full pull).
 
 ---
 

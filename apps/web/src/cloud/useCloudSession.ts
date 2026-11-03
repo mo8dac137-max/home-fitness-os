@@ -10,9 +10,14 @@ import {
   type AuthSession,
 } from '../supabase/authClient.js';
 import { runDeviceFlow, submitDeviceRecovery } from '../supabase/deviceFlow.js';
-import { revokeCurrentDevice } from '../supabase/deviceAuthClient.js';
+import {
+  fetchDeviceStatus,
+  loadEnrolledDeviceId,
+  revokeCurrentDevice,
+} from '../supabase/deviceAuthClient.js';
 import { KeyValueDeviceKeyStore } from '../supabase/deviceKeyStore.js';
 import { syncNow, type SyncSummary } from '../sync/syncService.js';
+import { createAutoSyncPolicy, type AutoSyncPolicy } from '../sync/syncTriggers.js';
 
 /**
  * Cloud session hook (Phase 4D2).
@@ -40,6 +45,12 @@ export interface CloudSessionState {
   deviceError: string | null;
   lastSync: SyncSummary | null;
   syncBusy: boolean;
+  /** Server-reported active device count (null = unknown/not fetched). */
+  activeDevices: number | null;
+  /** This browser's enrolled device id (informational, from the key store). */
+  deviceId: string | null;
+  /** Wall-clock ms of the last completed sync round (null = never). */
+  lastSyncAt: number | null;
 }
 
 export interface CloudSessionActions {
@@ -65,6 +76,9 @@ const INITIAL: CloudSessionState = {
   deviceError: null,
   lastSync: null,
   syncBusy: false,
+  activeDevices: null,
+  deviceId: null,
+  lastSyncAt: null,
 };
 
 /** Full reset applied after sign-out / deauthorize (Phase 4D3). */
@@ -76,6 +90,9 @@ const SIGNED_OUT_RESET: Partial<CloudSessionState> = {
   deviceError: null,
   lastSync: null,
   busy: false,
+  activeDevices: null,
+  deviceId: null,
+  lastSyncAt: null,
 };
 
 interface CloudStores {
@@ -129,6 +146,10 @@ function applyFlowResult(
 export function useCloudSession(): CloudSessionHandle {
   const [state, setState] = useState<CloudSessionState>(INITIAL);
   const sessionRef = useRef<AuthSession | null>(null);
+
+  // Opportunistic auto-sync policy (Phase 4D4): per-hook instance, lazily built
+  const autoSyncPolicyRef = useRef<AutoSyncPolicy | null>(null);
+  if (autoSyncPolicyRef.current === null) autoSyncPolicyRef.current = createAutoSyncPolicy();
 
   const patch = useCallback((p: Partial<CloudSessionState>) => {
     setState((s) => ({ ...s, ...p }));
@@ -241,6 +262,9 @@ export function useCloudSession(): CloudSessionHandle {
       authError: null,
       deviceError: null,
       lastSync: null,
+      activeDevices: null,
+      deviceId: null,
+      lastSyncAt: null,
     });
   }, [patch]);
 
@@ -265,14 +289,14 @@ export function useCloudSession(): CloudSessionHandle {
       eventLog,
     );
     if (first.ok) {
-      patch({ syncBusy: false, lastSync: first });
+      patch({ syncBusy: false, lastSync: first, lastSyncAt: Date.now() });
       return;
     }
     // Permission errors usually mean the 12 h device session lapsed: one
     // re-verify round, then a single retry. Anything else surfaces honestly.
     const flow = await runDeviceFlow(env.config, valid.data.session.access_token, deviceStore);
     if (flow.kind !== 'verified' && flow.kind !== 'enrolled') {
-      patch({ syncBusy: false, lastSync: first });
+      patch({ syncBusy: false, lastSync: first, lastSyncAt: Date.now() });
       return;
     }
     const second = await syncNow(
@@ -281,7 +305,7 @@ export function useCloudSession(): CloudSessionHandle {
       valid.data.session.user_id,
       eventLog,
     );
-    patch({ syncBusy: false, lastSync: second });
+    patch({ syncBusy: false, lastSync: second, lastSyncAt: Date.now() });
   }, [patch]);
 
   const dismissRecoveryCodes = useCallback((): void => {
@@ -330,8 +354,73 @@ export function useCloudSession(): CloudSessionHandle {
     }
     if (state.stage !== 'ready' || autoSyncRef.current) return;
     autoSyncRef.current = true;
+    // the cold-start round also feeds the opportunistic rate limiter, so a
+    // quick background/foreground right after launch cannot double-fire
+    autoSyncPolicyRef.current?.markStarted();
     void sync();
   }, [state.stage, sync]);
+
+  // ── device/self info (Phase 4D4): refresh once per readiness epoch ──────
+  const deviceInfoEpochRef = useRef(false);
+  const refreshDeviceInfo = useCallback(async (): Promise<void> => {
+    const env = readSupabaseEnv();
+    const token = sessionRef.current?.access_token;
+    if (!env.ok || token === undefined) return;
+    const { deviceStore } = openStores();
+    const deviceId = await loadEnrolledDeviceId(deviceStore);
+    patch({ deviceId });
+    // informational only: a failed status probe just leaves the count unknown
+    const status = await fetchDeviceStatus(env.config, token);
+    if (status.ok) patch({ activeDevices: status.data.active_devices });
+  }, [patch]);
+
+  useEffect(() => {
+    if (state.stage === 'signed_out') {
+      if (deviceInfoEpochRef.current) {
+        deviceInfoEpochRef.current = false;
+        patch({ activeDevices: null, deviceId: null, lastSyncAt: null });
+      }
+      return;
+    }
+    if (state.stage !== 'ready' || deviceInfoEpochRef.current) return;
+    deviceInfoEpochRef.current = true;
+    void refreshDeviceInfo();
+  }, [state.stage, refreshDeviceInfo, patch]);
+
+  // ── opportunistic auto-sync (Phase 4D4): visible again / back online ────
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+  const syncRef = useRef(sync);
+  useEffect(() => {
+    syncRef.current = sync;
+  }, [sync]);
+
+  useEffect(() => {
+    const tryOpportunisticSync = (): void => {
+      const policy = autoSyncPolicyRef.current;
+      const snap = stateRef.current;
+      if (policy === null) return;
+      if (!policy.shouldSync({ ready: snap.stage === 'ready', busy: snap.syncBusy })) return;
+      policy.markStarted();
+      void syncRef.current();
+    };
+    const onVisibility = (): void => {
+      if (
+        typeof document !== 'undefined' &&
+        document.visibilityState === 'visible'
+      ) {
+        tryOpportunisticSync();
+      }
+    };
+    window.addEventListener('online', tryOpportunisticSync);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('online', tryOpportunisticSync);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
 
   return {
     ...state,
