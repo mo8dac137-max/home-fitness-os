@@ -2,7 +2,7 @@
 
 > Source of truth for repo structure, package exports, test coverage, and active settings keys.
 >
-> Test totals in §4 include the Phase 4D7 task: 39 files / 361 tests.
+> Test totals in §4 include the Phase 4D8 task: 40 files / 366 tests.
 
 ---
 
@@ -14,7 +14,7 @@ apps/web/
 ├── tsconfig.json (8 lines)
 └── src/
     ├── App.tsx (245 lines)
-    ├── appearance.ts (311 lines)
+    ├── appearance.ts (317 lines)
     ├── bootstrap.ts (108 lines)
     ├── index.css (161 lines)
     ├── main.tsx (14 lines)
@@ -34,7 +34,8 @@ apps/web/
     │   ├── historyService.test.ts (249 lines)
     │   ├── historyWiring.test.ts (48 lines)
     │   ├── i18nArabicCoverage.test.ts (65 lines)
-    │   ├── motion4D7.test.ts (198 lines)
+    │   ├── motion4D7.test.ts (203 lines)
+    │   ├── motion4D8.test.ts (72 lines)
     │   ├── planService.test.ts (273 lines)
     │   ├── rtl.test.ts (129 lines)
     │   ├── sessionRunner.test.ts (330 lines)
@@ -67,9 +68,9 @@ apps/web/
     │   ├── planService.ts (305 lines)
     │   └── sessionRunner.ts (669 lines)
     ├── i18n/
-    │   └── index.ts (809 lines)
+    │   └── index.ts (841 lines)
     ├── screens/
-    │   ├── AppearanceLab.tsx (315 lines)
+    │   ├── AppearanceLab.tsx (324 lines)
     │   ├── HomeScreen.tsx (429 lines)
     │   ├── MoreScreen.tsx (531 lines)
     │   ├── ProgressScreen.tsx (174 lines)
@@ -183,7 +184,14 @@ packages/
 
 ---
 
-## 3. Files Changed in this Task (Phase 4D7 — per-skin motion personality)
+## 3. Files Changed in this Task (Phase 4D8 — motion personality hint in the style picker)
+- `apps/web/src/appearance.ts` (+6 lines: `MotionPersonality` gains `labelKey: string` — one `appearance.motion_<id>` key per skin; plain string, `appearance.ts` never imports i18n, the call site casts through `I18nKey` like the existing `STYLE_PRESETS.labelKey` pattern).
+- `apps/web/src/i18n/index.ts` (10 new keys per dict: the `appearance.motion_hint` template with the `{character}` placeholder + nine character labels — e.g. en "Unhurried glide" / ar "انزلاق متأنٍ"; the global placeholder-parity guard now covers `{character}` too).
+- `apps/web/src/screens/AppearanceLab.tsx` (+9 lines: every style-picker tile renders `t('appearance.motion_hint').replace('{character}', t(labelKey))` as a 9px 80%-opacity caption under the skin name — the manual placeholder pattern 4D6 established; the picker stays WYSIWYG so the caption describes the tile's own skin).
+- `apps/web/src/__tests__/motion4D8.test.ts` (new, 5 tests); `apps/web/src/__tests__/motion4D7.test.ts` (churn guard now pins `durationScale` values only — labelKey churn is owned by 4D8).
+- `docs/REPORT_PHASE4D8.md`, `docs/STATE.md`.
+
+### Previous: Files Changed in this Task (Phase 4D7 — per-skin motion personality)
 - `apps/web/src/appearance.ts` (+34 lines: `MotionPersonality` + `MOTION_PERSONALITIES` — one `durationScale` knob per skin (brutal 0.7 … aurora 1.2, clay baseline 1); `applyAppearanceToDOM` now scales **six** motion tokens (three new: enter/draw/stagger) by the active skin's scale and zeroes all six unscaled on `motion: 'reduced'`).
 - `apps/web/src/styles/tokens.css` (+11 lines: three new motion tokens `--motion-duration-enter: 220ms`, `--motion-duration-draw: 900ms`, `--motion-stagger: 50ms`; all six zeroed in the `prefers-reduced-motion` block; the clay baseline personality documented in place).
 - `apps/web/src/index.css` (+2 lines net: the three animation classes consume the new tokens — hardcoded 220/900/50ms survive only as `var(…, fallback)` safety nets — so the reduced setting and the skin scale genuinely reach screen/card/ring animations).
@@ -324,7 +332,7 @@ packages/
 
 ## 4. Test Counts per Package
 
-Total: **39 test files, 361 tests passing**.
+Total: **40 test files, 366 tests passing**.
 - `packages/engine-core`: 71 tests (engine-core: 59, engine-honesty-e1a: 9, engine-guard: 1, numeric-literals: 1, smoke: 1)
 - `packages/contracts`: 21 tests
 - `packages/config`: 16 tests
@@ -352,9 +360,10 @@ Total: **39 test files, 361 tests passing**.
 - **Done (Phase 4D5)**: auto theme mode + per-device rows — `theme_mode: manual/system` with a skin per scheme (`style_light` default paper, `style_dark` default clay), legacy settings migrate honestly, pre-paint + live `matchMedia` re-apply keep the scheme-matching skin, and the lab picker edits the skin the device is currently showing; the account card lists the server's non-revoked devices with label, `Last seen`, and a `This device` chip (edge function v2 stamps `last_seen_at` on verify and degrades to the v1 payload before the migration lands). 21 new tests (total 338), bundle 141.43/300 KB. Owner actions: **DONE** — the migration was applied live via the SQL editor (`Success. No rows returned`) and the function was redeployed from the dashboard; externally verified post-redeploy: a no-token POST answers `401 {"error":"missing_token"}` and OPTIONS answers `200 ok`, so contract v2 is live. Honest stamping semantics: `last_seen_at` is written only on verify rounds (enroll / re-verify / recovery), so a device inside its 12 h verified session shows "not seen yet" until its next verify round.
 - **Done (Phase 4D6)**: per-device revoke + added-when + CORS allow-list — the Account card's device rows now carry a Revoke affordance (current device routes to the existing 4D3 deauthorize flow; other devices get a two-step inline confirm through the new `revokeDevice` hook action → `revokeDeviceById`, which never touches the local key store); rows lead with `Added {date}` next to the last-seen fact; the server's `revoke` answers `404 unknown_or_revoked_device` for unknown/already-revoked ids instead of a fake `ok`; CORS builds per request from the optional `DEVICE_AUTH_ALLOWED_ORIGINS` env allow-list (the spike's `*` stays when unset — M0-15b); 5 new i18n keys in both dicts. 13 new tests (total 351), bundle 141.96/300 KB.
 - **Done (Phase 4D7)**: per-skin motion personality — JS owns a per-skin `durationScale` (brutal 0.7 stamps … aurora 1.2 drifts, clay baseline 1 byte-identical) applied to all six motion tokens (three new: enter/draw/stagger), CSS owns the character (per-skin `--motion-timing` curves; signature `glassEnter` breath and `brutalStamp` no-fade enter via `animation-name` overrides), and a pre-existing honesty gap closed: the hardcoded 220/900/50ms animation durations now consume tokens, so the in-app `motion: 'reduced'` setting truly stops everything. No component branches on the style; no new UI or i18n; pure client phase — no owner action. 10 new tests (total 361), bundle 142.10/300 KB.
-- **Deployment note**: nothing to deploy server-side for 4C/4D2/4D3 beyond two owner actions — (1) apply `supabase/migrations/20261104000000_p4d3_cleanup_expired_device_auth.sql` in the SQL editor (optionally schedule it with the included pg_cron snippet), and (2) provide a test user for the live E2E rehearsal (`npm run e2e:live`, see `docs/REPORT_LIVE_E2E.md`): a dashboard-created user with Auto Confirm ✔ (option A, full 26 stations) or temporarily enabling anonymous sign-ins (option B, 23 stations). The project correctly ships with open signups and the anonymous provider disabled (re-confirmed live: `422 signup_disabled`, `422 anonymous_provider_disabled`). 4D6 adds a third owner action: redeploy `device-auth` again (the honest-404 revoke + CORS allow-list source) — safe either way, the client tolerates the old bare-ok answers; optional hardening: set `DEVICE_AUTH_ALLOWED_ORIGINS` to the production origin in the function's secrets. 4D7 adds nothing server-side (pure client: CSS + one JS map).
+- **Done (Phase 4D8)**: motion personality hint in the style picker — every skin tile in the Appearance Lab now captions its motion character (`Motion: {character}` / `الحركة: {character}`, e.g. "Unhurried glide" / "انزلاق متأنٍ") resolved from the new per-skin `labelKey` through 10 new keys per dict; manual placeholder replacement per the 4D6 `{date}` pattern; no persistence, no branching on the style, no in-tile animation (the app already repaints WYSIWYG). Pure client phase — no owner action. 5 new tests (total 366), bundle 142.43/300 KB.
+- **Deployment note**: nothing to deploy server-side for 4C/4D2/4D3 beyond two owner actions — (1) apply `supabase/migrations/20261104000000_p4d3_cleanup_expired_device_auth.sql` in the SQL editor (optionally schedule it with the included pg_cron snippet), and (2) provide a test user for the live E2E rehearsal (`npm run e2e:live`, see `docs/REPORT_LIVE_E2E.md`): a dashboard-created user with Auto Confirm ✔ (option A, full 26 stations) or temporarily enabling anonymous sign-ins (option B, 23 stations). The project correctly ships with open signups and the anonymous provider disabled (re-confirmed live: `422 signup_disabled`, `422 anonymous_provider_disabled`). 4D6 adds a third owner action: redeploy `device-auth` again (the honest-404 revoke + CORS allow-list source) — safe either way, the client tolerates the old bare-ok answers; optional hardening: set `DEVICE_AUTH_ALLOWED_ORIGINS` to the production origin in the function's secrets. 4D7 adds nothing server-side (pure client: CSS + one JS map). 4D8 likewise adds nothing server-side (pure client: one UI field + i18n keys).
 - **Push note**: `c03acb5` (e2e tooling) + `c8d5e97` (Phase 4D3) were pushed to `origin/main` and CI finished green (run for `c8d5e97`, all steps success, ~38 s — the repo's normal duration).
-- **Possible next (4D8 candidates)**: a revoke-confirmation second factor (product decision — the verified device session already gates the action); surfacing per-device revoked history (needs a query surface for revoked rows, currently only non-revoked devices render); a per-skin motion hint in the lab's style picker (the personality is currently implicit — documented in code/tests only); cursor-based pull only if the event log ever grows (currently a deliberate full pull); pg_cron scheduling of the expired-session cleanup (still blocked on the owner confirming pg_cron availability).
+- **Possible next (4D9 candidates)**: surfacing per-device revoked history (needs a query surface for revoked rows, currently only non-revoked devices render); a revoke-confirmation second factor (product decision — the verified device session already gates the action); cursor-based pull only if the event log ever grows (currently a deliberate full pull); pg_cron scheduling of the expired-session cleanup (still blocked on the owner confirming pg_cron availability).
 
 ---
 

@@ -79,16 +79,21 @@ describe('phase 4D7: per-skin motion personality', () => {
   });
 
   it('keeps the documented personality per skin (churn guard)', () => {
-    expect(MOTION_PERSONALITIES).toEqual({
-      clay: { durationScale: 1 }, // baseline
-      glass: { durationScale: 1.15 }, // floats
-      neu: { durationScale: 1 }, // cushioned, standard
-      mono: { durationScale: 0.85 }, // crisp
-      neon: { durationScale: 0.8 }, // electric
-      aurora: { durationScale: 1.2 }, // drifts
-      brutal: { durationScale: 0.7 }, // stamps
-      paper: { durationScale: 1 }, // steady press
-      oled: { durationScale: 0.85 }, // black-glass sharp
+    // 4D8 added a labelKey per entry (guarded in motion4D8.test.ts); this
+    // guard pins the durationScale values exactly as shipped in 4D7.
+    const scales = Object.fromEntries(
+      Object.entries(MOTION_PERSONALITIES).map(([variant, p]) => [variant, p.durationScale])
+    );
+    expect(scales).toEqual({
+      clay: 1, // baseline
+      glass: 1.15, // floats
+      neu: 1, // cushioned, standard
+      mono: 0.85, // crisp
+      neon: 0.8, // electric
+      aurora: 1.2, // drifts
+      brutal: 0.7, // stamps
+      paper: 1, // steady press
+      oled: 0.85, // black-glass sharp
     });
   });
 

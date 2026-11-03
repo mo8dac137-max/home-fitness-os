@@ -3,6 +3,7 @@ import {
   type AppearanceSettings,
   ACCENT_PRESETS,
   DEFAULT_APPEARANCE,
+  MOTION_PERSONALITIES,
   STYLE_PRESETS,
   STYLE_VARIANTS,
   resolveEffectiveStyle,
@@ -164,6 +165,14 @@ export const AppearanceLab: React.FC<AppearanceLabProps> = ({
                 />
                 <span className="text-[11px] font-bold text-center leading-tight">
                   {t(preset.labelKey as I18nKey)}
+                </span>
+                {/* 4D8: the skin's motion personality, made explicit — the
+                    character label resolves through the shared i18n dicts. */}
+                <span className="text-[9px] font-semibold text-center leading-tight opacity-80">
+                  {t('appearance.motion_hint').replace(
+                    '{character}',
+                    t(MOTION_PERSONALITIES[variant].labelKey as I18nKey)
+                  )}
                 </span>
               </button>
             );

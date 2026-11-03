@@ -110,18 +110,24 @@ export const STYLE_PRESETS: Record<StyleVariant, { labelKey: string; bg: string;
 export interface MotionPersonality {
   /** Multiplier for the base motion durations (0.7 snappy … 1.2 floaty). */
   durationScale: number;
+  /**
+   * Phase 4D8: i18n key of the human-readable character label surfaced as a
+   * caption in the lab's style picker (resolved through both dicts by
+   * tests; plain string here — appearance.ts never imports i18n).
+   */
+  labelKey: string;
 }
 
 export const MOTION_PERSONALITIES: Record<StyleVariant, MotionPersonality> = {
-  clay: { durationScale: 1 }, // soft settle — the baseline personality
-  glass: { durationScale: 1.15 }, // panes float, unhurried
-  neu: { durationScale: 1 }, // cushioned rubber, standard pace
-  mono: { durationScale: 0.85 }, // crisp, immediate
-  neon: { durationScale: 0.8 }, // electric snap
-  aurora: { durationScale: 1.2 }, // drifting glow, the longest glide
-  brutal: { durationScale: 0.7 }, // stamps, no ceremony
-  paper: { durationScale: 1 }, // steady print press
-  oled: { durationScale: 0.85 }, // black-glass sharpness
+  clay: { durationScale: 1, labelKey: 'appearance.motion_clay' }, // soft settle — the baseline personality
+  glass: { durationScale: 1.15, labelKey: 'appearance.motion_glass' }, // panes float, unhurried
+  neu: { durationScale: 1, labelKey: 'appearance.motion_neu' }, // cushioned rubber, standard pace
+  mono: { durationScale: 0.85, labelKey: 'appearance.motion_mono' }, // crisp, immediate
+  neon: { durationScale: 0.8, labelKey: 'appearance.motion_neon' }, // electric snap
+  aurora: { durationScale: 1.2, labelKey: 'appearance.motion_aurora' }, // drifting glow, the longest glide
+  brutal: { durationScale: 0.7, labelKey: 'appearance.motion_brutal' }, // stamps, no ceremony
+  paper: { durationScale: 1, labelKey: 'appearance.motion_paper' }, // steady print press
+  oled: { durationScale: 0.85, labelKey: 'appearance.motion_oled' }, // black-glass sharpness
 };
 
 export const DEFAULT_APPEARANCE: AppearanceSettings = {
