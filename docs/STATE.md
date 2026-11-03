@@ -18,6 +18,8 @@ apps/web/
     ├── main.tsx (14 lines)
     ├── __tests__/
     │   ├── appearance.test.ts (125 lines)
+    │   ├── deviceAuthClient.test.ts (482 lines)
+    │   ├── deviceKeys.test.ts (166 lines)
     │   ├── i18n-compliance.test.ts (120 lines)
     │   ├── historyService.test.ts (249 lines)
     │   ├── historyWiring.test.ts (48 lines)
@@ -68,6 +70,9 @@ apps/web/
     │   ├── KeyValueStore.ts (107 lines)
     │   └── __tests__/storage.test.ts (153 lines)
     ├── supabase/
+    │   ├── deviceAuthClient.ts (377 lines)
+    │   ├── deviceKeyStore.ts (100 lines)
+    │   ├── deviceKeys.ts (159 lines)
     │   ├── env.ts (61 lines)
     │   ├── probe.ts (56 lines)
     │   └── syncTransport.ts (280 lines)
@@ -136,12 +141,23 @@ packages/
 - **`AppearanceLab`**: Live preview with controls for accent presets, clay depth, corner radius, density, and haptics.
 - **`CloudSyncCard`**: Honest cloud status card (More › About) — validates env config, probes the project's auth health endpoint once per mount, reports connected/unreachable/not-configured via i18n only.
 - **`supabase/env` + `supabase/probe`**: env-driven config plumbing (`readSupabaseEnv`, degrades to typed `missing`/`invalid_url`, never throws) and injected-I/O liveness probe (`probeCloudConnection`); no supabase-js dependency yet (lands with auth in 4B/4C).
+- **`supabase/deviceKeys`**: WebCrypto ECDSA P-256 device key core (Phase 4C) — `generateDeviceKeyPair` (private key non-extractable), `signNonce` (SHA-256 over the raw UTF-8 nonce, base64url out), `exportPublicJwk` (minimal `kty/crv/x/y` JWK), `isValidPublicDeviceJwk` (mirror of the server's `validPublicJwk`), and `verifyNonceSignature` (server-algorithm replica for tests).
+- **`supabase/deviceKeyStore`**: `DeviceKeyStore` port persisting the enrolled-device record (`device_id`, `label`, `public_jwk`, non-extractable `private_key` as a structured-cloned `CryptoKey` — never serialized to a string). `InMemoryDeviceKeyStore` for tests, `KeyValueDeviceKeyStore` over the app's IndexedDB `kv` store for the browser, with defensive rehydration (`storedDeviceRecordFromUnknown`).
+- **`supabase/deviceAuthClient`**: `device-auth` Edge Function client (Phase 4C) — `enrollCurrentDevice` (reuses orphaned key pairs; 409 passes through), `verifyCurrentDevice` (challenge → sign → verify, binding the auth `session_id` to a 12 h device session), `revokeCurrentDevice` (clears the local record on success), `recoverDevice` (fresh key pair + one-time recovery code), `fetchDeviceStatus`; plain fetch with injected I/O, discriminated results, server error codes surfaced verbatim (client-synthesized codes: `missing_token`, `bad_response`, `network_error`, `timeout`, `not_enrolled`, `signing_failed`).
 - **`PlanService`**: Manages `getOrCreatePlan`, horizon sliding, day decision summaries, generation benchmarking, and event logging.
 - **`sessionRunner`**: Session runner state, `sessionReducer`, event emission (`session.started`, `session.set_logged`, `session.completed`, `session.abandoned`), dynamic rest computation with ceiling-clamped extensions, in-flight persistence.
 
 ---
 
-## 3. Files Changed in this Task (Phase 4B/4D1 — Live Schema + Sync Data Layer)
+## 3. Files Changed in this Task (Phase 4C — Device Auth Client)
+- `apps/web/src/supabase/deviceKeys.ts` (new, 159 lines: WebCrypto ECDSA P-256 core — `generateDeviceKeyPair` with a non-extractable private key, `signNonce` = ECDSA/SHA-256 over the raw UTF-8 nonce bytes → unpadded base64url, `exportPublicJwk` minimal `kty/crv/x/y`, `isValidPublicDeviceJwk` mirroring the server's `validPublicJwk`, `verifyNonceSignature` replicating the Edge Function's verification byte-for-byte, base64url codecs, `isCryptoPrivateKey` duck-type guard).
+- `apps/web/src/supabase/deviceKeyStore.ts` (new, 100 lines: `DeviceKeyStore` port + `StoredDeviceRecord` (`device_id` nullable for orphans, `public_jwk`, non-extractable `private_key` persisted via IndexedDB structured clone — no secret ever stringified); `InMemoryDeviceKeyStore`, `KeyValueDeviceKeyStore` over the existing `kv` store, defensive `storedDeviceRecordFromUnknown` rehydration).
+- `apps/web/src/supabase/deviceAuthClient.ts` (new, 377 lines: `device-auth` Edge Function client — `callDeviceAuth` POST transport with apikey/Bearer headers, abortable timeout, honest result objects; `enrollCurrentDevice` with orphan-key reuse, `verifyCurrentDevice` challenge→sign→verify, `revokeCurrentDevice` with local clear-on-success, `recoverDevice` with fresh keys + normalized code, `fetchDeviceStatus`; server error codes verbatim, client-synthesized codes documented).
+- `apps/web/src/__tests__/deviceKeys.test.ts` (new, 10 tests: key shape incl. `extractable === false`, minimal-JWK export, signature round-trip against a byte-for-byte replica of the server's `verifySignature`, tamper rejection, RFC 4648 base64url vectors, JWK validation matrix, import/re-export stability).
+- `apps/web/src/__tests__/deviceAuthClient.test.ts` (new, 25 tests: transport headers/URL, verbatim error passthrough, missing-token short-circuit, network/timeout/`bad_response` paths; enroll happy path + orphan reuse + 409 refusal + malformed bodies; verify flow with the mock server actually verifying the signature via the deployed algorithm, `not_enrolled` short-circuit, challenge/verify failure surfacing; revoke clear/keep semantics; recover fresh-key replacement + code normalization; status passthrough/coercion; corrupt-record rehydration; source guards against hard-coded URLs/secrets and contract drift).
+- `docs/REPORT_PHASE4C.md`, `docs/STATE.md`.
+
+### Previous: Files Changed in this Task (Phase 4B/4D1 — Live Schema + Sync Data Layer)
 - `supabase/migrations/20261103000000_p4d1_session_events_sync.sql` (new, 45 lines: append-only `session_events` cloud mirror of the EventEnvelope log — `idempotency_key` PK, user FK, payload jsonb, occurred_at indexes; RLS authoritative with user scoping **and** `device_session_valid()` gate; select+insert only for authenticated — no update/delete policies).
 - `apps/web/src/supabase/syncTransport.ts` (new, 280 lines: `toSyncRow`/`envelopeFromSyncRow` mapping with defensive rehydration; `pushEvents` — batched POST with `resolution=ignore-duplicates,return=representation` for honest pushed/duplicates accounting; `pullEvents` — cursor pagination by `occurred_at`; injected fetch/clock/timeout, no supabase-js).
 - `apps/web/src/__tests__/syncTransport.test.ts` (new, 7 tests: mapping round-trip incl. `supersedes_event_id`, malformed-row tolerance, batch chunking 25→3 chunks, duplicate accounting 3/22, auth+Prefer headers, pull pagination via short page, HTTP failure paths).
@@ -201,7 +217,7 @@ packages/
 
 ## 4. Test Counts per Package
 
-Total: **28 test files, 215 tests passing**.
+Total: **30 test files, 250 tests passing**.
 - `packages/engine-core`: 71 tests (engine-core: 59, engine-honesty-e1a: 9, engine-guard: 1, numeric-literals: 1, smoke: 1)
 - `packages/contracts`: 21 tests
 - `packages/config`: 16 tests
@@ -209,7 +225,7 @@ Total: **28 test files, 215 tests passing**.
 - `packages/library`: 9 tests (library: 7, smoke: 2)
 - `packages/sim`: 4 tests (simulation: 1, smoke: 3)
 - `packages/ports`: 1 test
-- `apps/web`: 86 tests (sessionRunnerHardening: 12, historyService: 9, workoutRunnerScreen: 10, syncTransport: 7, supabaseProbe: 5, sessionRunner: 6, planService: 6, storage: 4, appearance: 5, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
+- `apps/web`: 121 tests (sessionRunnerHardening: 12, deviceAuthClient: 25, historyService: 9, workoutRunnerScreen: 10, syncTransport: 7, supabaseProbe: 5, deviceKeys: 10, sessionRunner: 6, planService: 6, storage: 4, appearance: 5, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
 
 ---
 
@@ -219,8 +235,10 @@ Total: **28 test files, 215 tests passing**.
 - **Done (Phase 4A)**: Supabase foundation wiring — env-driven config (`.env` gitignored; `.env.example` placeholders), `readSupabaseEnv` validation, `probeCloudConnection` auth-health probe, `CloudSyncCard` honest status (More › About).
 - **Done (Phase 4B)**: M0-15 schema applied live by the owner via the SQL editor (`Success. No rows returned`); externally verified — `spike_data` anon access flipped from `404 PGRST205` (table missing) to `401 42501` (permission denied), exactly the revoked-privilege posture.
 - **Done (4C verification)**: the `device-auth` edge function survived the pause — it responds `401 {"error":"missing_token"}` (its own contract error, not "Function not found"). No redeploy needed.
-- **Done (Phase 4D1)**: sync data layer — `session_events` migration (append-only, user + device-session RLS) and `syncTransport` (batched idempotent push, cursor pull) with 7 tests. The new migration awaits the owner's SQL-editor run.
-- **Phase 4D2 (Next)**: auth integration in the app — sign-in UI + device enroll/verify flow against the live `device-auth` function, then sync orchestration (push local log, pull remote) wired into App lifecycle.
+- **Done (Phase 4C client-side)**: full device auth client — `deviceKeys` (ECDSA P-256, non-extractable private key, server-mirrored signing/validation), `deviceKeyStore` (port + IndexedDB structured-clone persistence of the `CryptoKey`), `deviceAuthClient` (enroll / challenge→sign→verify / revoke / recover / status against the deployed function contract). 35 new tests (total 250), all green; no app wiring yet — the UI layer is intentionally untouched.
+- **Done (Phase 4D1)**: sync data layer — `session_events` migration (append-only, user + device-session RLS) and `syncTransport` (batched idempotent push, cursor pull) with 7 tests. Migration applied live by the owner and externally verified: anon `GET /rest/v1/session_events` answers `401 42501 permission denied` (table present, revoked-privilege posture).
+- **Phase 4D2 (Next)**: auth integration in the app — sign-in UI + device enroll/verify flow against the live `device-auth` function (client modules from 4C are ready: `enrollCurrentDevice`, `verifyCurrentDevice`, `recoverDevice`), then sync orchestration (push local log, pull remote) wired into App lifecycle.
+- **Deployment note**: nothing new to deploy for 4C — the client modules are pure additions behind tests; the `device-auth` function, the M0-15 schema, and the `session_events` table are all live and verified. The remaining manual step is the live enroll/verify rehearsal once 4D2 lands.
 
 ---
 
