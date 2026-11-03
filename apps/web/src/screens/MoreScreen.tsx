@@ -14,6 +14,8 @@ import { getEffectiveConfig } from '@hfos/config';
 import type { MockUserProfile } from '@hfos/sim';
 import { UpdateBanner } from '../components/UpdateBanner.js';
 import { CloudSyncCard } from '../components/CloudSyncCard.js';
+import { CloudAccountCard } from '../components/CloudAccountCard.js';
+import type { CloudSessionHandle } from '../cloud/useCloudSession.js';
 import { ClayCard } from '../components/ClayCard.js';
 import { ClayButton } from '../components/ClayButton.js';
 import { Icon } from '../components/IconSet.js';
@@ -26,6 +28,7 @@ interface MoreScreenProps {
   onProfileUpdated: () => void;
   appearance: AppearanceSettings;
   onAppearanceChange: (settings: AppearanceSettings) => void;
+  cloud?: CloudSessionHandle | null;
 }
 
 type MoreSubView = 'menu' | 'settings' | 'appearance' | 'equipment' | 'data' | 'about';
@@ -37,6 +40,7 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
   onProfileUpdated,
   appearance,
   onAppearanceChange,
+  cloud = null,
 }) => {
   const [subView, setSubView] = useState<MoreSubView>('menu');
 
@@ -428,7 +432,8 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
           </div>
         </ClayCard>
 
-        {/* Cloud sync status (Phase 4A) */}
+        {/* Cloud account + sync status (Phase 4D2 / 4A) */}
+        {cloud && <CloudAccountCard cloud={cloud} />}
         <CloudSyncCard />
       </div>
     );

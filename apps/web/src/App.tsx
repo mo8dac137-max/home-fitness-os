@@ -27,6 +27,7 @@ import { WorkoutRunnerScreen } from './screens/WorkoutRunnerScreen.js';
 import { PlanService, type DayDecisionSummary } from './engine/planService.js';
 import { loadSessionRunner } from './engine/sessionRunner.js';
 import { loadHistorySummary, type TrainingHistorySummary } from './engine/historyService.js';
+import { useCloudSession } from './cloud/useCloudSession.js';
 import type { PlanDay } from '@hfos/contracts';
 
 export default function App() {
@@ -34,6 +35,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [mockProfile, setMockProfile] = useState<MockUserProfile | null>(null);
   const [appearance, setAppearance] = useState<AppearanceSettings>(DEFAULT_APPEARANCE);
+
+  // Cloud session (Phase 4D2): optional, never blocks the local-first app
+  const cloud = useCloudSession();
 
   // Plan state
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -173,6 +177,7 @@ export default function App() {
               setActiveWorkoutDay(null);
               loadPlan();
               loadHistory();
+              void cloud.sync(); // push the fresh events when the cloud is ready
             }}
           />
         ) : (
@@ -208,6 +213,7 @@ export default function App() {
                 onProfileUpdated={handleProfileUpdated}
                 appearance={appearance}
                 onAppearanceChange={setAppearance}
+                cloud={cloud}
               />
             )}
           </>

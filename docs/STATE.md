@@ -18,8 +18,12 @@ apps/web/
     ├── main.tsx (14 lines)
     ├── __tests__/
     │   ├── appearance.test.ts (125 lines)
+    │   ├── authClient.test.ts (309 lines)
+    │   ├── cloudWiring.test.ts (64 lines)
     │   ├── deviceAuthClient.test.ts (482 lines)
+    │   ├── deviceFlow.test.ts (229 lines)
     │   ├── deviceKeys.test.ts (166 lines)
+    │   ├── syncService.test.ts (158 lines)
     │   ├── i18n-compliance.test.ts (120 lines)
     │   ├── historyService.test.ts (249 lines)
     │   ├── historyWiring.test.ts (48 lines)
@@ -39,6 +43,7 @@ apps/web/
     │   ├── Chip.tsx (59 lines)
     │   ├── ClayButton.tsx (54 lines)
     │   ├── ClayCard.tsx (27 lines)
+    │   ├── CloudAccountCard.tsx (229 lines)
     │   ├── CloudSyncCard.tsx (94 lines)
     │   ├── DayChip.tsx (77 lines)
     │   ├── EmptyState.tsx (48 lines)
@@ -70,12 +75,18 @@ apps/web/
     │   ├── KeyValueStore.ts (107 lines)
     │   └── __tests__/storage.test.ts (153 lines)
     ├── supabase/
+    │   ├── authClient.ts (368 lines)
     │   ├── deviceAuthClient.ts (377 lines)
+    │   ├── deviceFlow.ts (145 lines)
     │   ├── deviceKeyStore.ts (100 lines)
     │   ├── deviceKeys.ts (159 lines)
     │   ├── env.ts (61 lines)
     │   ├── probe.ts (56 lines)
     │   └── syncTransport.ts (280 lines)
+    ├── sync/
+    │   └── syncService.ts (99 lines)
+    ├── cloud/
+    │   └── useCloudSession.ts (286 lines)
     └── styles/
         ├── clay.css (73 lines)
         └── tokens.css (93 lines)
@@ -140,6 +151,11 @@ packages/
 - **`MoreScreen`**: Grouped navigation for Settings, Appearance Lab, Equipment, Data, and System Diagnostics.
 - **`AppearanceLab`**: Live preview with controls for accent presets, clay depth, corner radius, density, and haptics.
 - **`CloudSyncCard`**: Honest cloud status card (More › About) — validates env config, probes the project's auth health endpoint once per mount, reports connected/unreachable/not-configured via i18n only.
+- **`CloudAccountCard`** (Phase 4D2): the account surface (More › About) — inline sign-in form, device verification/recovery states, one-time recovery-codes display, Sync now / Sign out, and honest sync-result/sync-failure lines; i18n-only copy, logical (RTL-safe) classes only.
+- **`supabase/authClient`** (Phase 4D2): Supabase Auth REST client without supabase-js — `signInWithPassword`, `refreshSession`, `getValidSession` (pre-emptive refresh within a 60 s TTL margin; 4xx refresh rejections clear the session while transient network/5xx failures deliberately keep it), `signOut` (best-effort global logout, never blocks local sign-out); `AuthSessionStore` port with `InMemory` + `KeyValue` implementations and defensive rehydration.
+- **`supabase/deviceFlow`** (Phase 4D2): one idempotent state machine over the 4C primitives — `runDeviceFlow` (status → verified / enroll+verify with one-time codes / recovery_required with reasons) and `submitDeviceRecovery`; every outcome is data, server codes pass through verbatim.
+- **`sync/syncService`** (Phase 4D2): `syncNow` — push all local envelopes (idempotent by primary key) then pull remote rows and merge only genuinely new ones into the local `EventLog`, with honest pushed/duplicates/pulled/merged accounting.
+- **`cloud/useCloudSession`** (Phase 4D2): thin React glue — stages (checking/signed_out/device_flow/recovery/ready), mount-time restore + device-flow convergence, sign-in/recovery/sign-out actions, and `sync()` with one re-verify retry when a 12 h device session lapsed; the app stays fully usable signed out.
 - **`supabase/env` + `supabase/probe`**: env-driven config plumbing (`readSupabaseEnv`, degrades to typed `missing`/`invalid_url`, never throws) and injected-I/O liveness probe (`probeCloudConnection`); no supabase-js dependency yet (lands with auth in 4B/4C).
 - **`supabase/deviceKeys`**: WebCrypto ECDSA P-256 device key core (Phase 4C) — `generateDeviceKeyPair` (private key non-extractable), `signNonce` (SHA-256 over the raw UTF-8 nonce, base64url out), `exportPublicJwk` (minimal `kty/crv/x/y` JWK), `isValidPublicDeviceJwk` (mirror of the server's `validPublicJwk`), and `verifyNonceSignature` (server-algorithm replica for tests).
 - **`supabase/deviceKeyStore`**: `DeviceKeyStore` port persisting the enrolled-device record (`device_id`, `label`, `public_jwk`, non-extractable `private_key` as a structured-cloned `CryptoKey` — never serialized to a string). `InMemoryDeviceKeyStore` for tests, `KeyValueDeviceKeyStore` over the app's IndexedDB `kv` store for the browser, with defensive rehydration (`storedDeviceRecordFromUnknown`).
@@ -217,7 +233,7 @@ packages/
 
 ## 4. Test Counts per Package
 
-Total: **30 test files, 250 tests passing**.
+Total: **34 test files, 284 tests passing**.
 - `packages/engine-core`: 71 tests (engine-core: 59, engine-honesty-e1a: 9, engine-guard: 1, numeric-literals: 1, smoke: 1)
 - `packages/contracts`: 21 tests
 - `packages/config`: 16 tests
@@ -225,7 +241,7 @@ Total: **30 test files, 250 tests passing**.
 - `packages/library`: 9 tests (library: 7, smoke: 2)
 - `packages/sim`: 4 tests (simulation: 1, smoke: 3)
 - `packages/ports`: 1 test
-- `apps/web`: 121 tests (sessionRunnerHardening: 12, deviceAuthClient: 25, historyService: 9, workoutRunnerScreen: 10, syncTransport: 7, supabaseProbe: 5, deviceKeys: 10, sessionRunner: 6, planService: 6, storage: 4, appearance: 5, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
+- `apps/web`: 155 tests (deviceAuthClient: 25, sessionRunnerHardening: 12, authClient: 14, deviceFlow: 9, deviceKeys: 10, historyService: 9, workoutRunnerScreen: 10, syncTransport: 7, syncService: 6, supabaseProbe: 5, cloudWiring: 5, sessionRunner: 6, planService: 6, storage: 4, appearance: 5, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
 
 ---
 
@@ -236,9 +252,10 @@ Total: **30 test files, 250 tests passing**.
 - **Done (Phase 4B)**: M0-15 schema applied live by the owner via the SQL editor (`Success. No rows returned`); externally verified — `spike_data` anon access flipped from `404 PGRST205` (table missing) to `401 42501` (permission denied), exactly the revoked-privilege posture.
 - **Done (4C verification)**: the `device-auth` edge function survived the pause — it responds `401 {"error":"missing_token"}` (its own contract error, not "Function not found"). No redeploy needed.
 - **Done (Phase 4C client-side)**: full device auth client — `deviceKeys` (ECDSA P-256, non-extractable private key, server-mirrored signing/validation), `deviceKeyStore` (port + IndexedDB structured-clone persistence of the `CryptoKey`), `deviceAuthClient` (enroll / challenge→sign→verify / revoke / recover / status against the deployed function contract). 35 new tests (total 250), all green; no app wiring yet — the UI layer is intentionally untouched.
+- **Done (Phase 4D2)**: auth integration + sync orchestration — `authClient` (Auth REST + session store), `deviceFlow` (status/enroll/verify/recovery state machine), `syncService` (idempotent push+pull+merge), `useCloudSession` hook, `CloudAccountCard` UI (More › About) with full en/ar i18n (28 new keys), App wiring (`cloud.sync()` after workout completion). 34 new tests (total 284), all green; bundle 137.47/300 KB.
 - **Done (Phase 4D1)**: sync data layer — `session_events` migration (append-only, user + device-session RLS) and `syncTransport` (batched idempotent push, cursor pull) with 7 tests. Migration applied live by the owner and externally verified: anon `GET /rest/v1/session_events` answers `401 42501 permission denied` (table present, revoked-privilege posture).
-- **Phase 4D2 (Next)**: auth integration in the app — sign-in UI + device enroll/verify flow against the live `device-auth` function (client modules from 4C are ready: `enrollCurrentDevice`, `verifyCurrentDevice`, `recoverDevice`), then sync orchestration (push local log, pull remote) wired into App lifecycle.
-- **Deployment note**: nothing new to deploy for 4C — the client modules are pure additions behind tests; the `device-auth` function, the M0-15 schema, and the `session_events` table are all live and verified. The remaining manual step is the live enroll/verify rehearsal once 4D2 lands.
+- **Deployment note**: nothing to deploy server-side for 4C/4D2 — the `device-auth` function, the M0-15 schema, and the `session_events` table are all live and verified. The remaining manual step is the live end-to-end rehearsal: sign in → enroll (save the 8 codes) → verify → `GET /rest/v1/session_events` with the verified token must return `[]` (not 401).
+- **Possible next (4D3 candidates)**: auto-sync on app start when ready (currently: after workout completion + manual Sync now), a deauthorize-device action (server `revoke` is implemented client-side but not surfaced), and cleaning up expired challenges/sessions via a scheduled SQL job.
 
 ---
 
