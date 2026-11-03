@@ -1,6 +1,8 @@
 # Home Fitness OS — Project State Map
 
 > Source of truth for repo structure, package exports, test coverage, and active settings keys.
+>
+> Test totals in §4 include the E1b-residual pass (commit `6bad8a5`): 34 files / 287 tests.
 
 ---
 
@@ -13,7 +15,7 @@ apps/web/
 └── src/
     ├── App.tsx (223 lines)
     ├── appearance.ts (139 lines)
-    ├── bootstrap.ts (86 lines)
+    ├── bootstrap.ts (105 lines)
     ├── index.css (150 lines)
     ├── main.tsx (14 lines)
     ├── __tests__/
@@ -28,7 +30,7 @@ apps/web/
     │   ├── historyService.test.ts (249 lines)
     │   ├── historyWiring.test.ts (48 lines)
     │   ├── i18nArabicCoverage.test.ts (65 lines)
-    │   ├── planService.test.ts (163 lines)
+    │   ├── planService.test.ts (273 lines)
     │   ├── rtl.test.ts (129 lines)
     │   ├── sessionRunner.test.ts (330 lines)
     │   ├── sessionRunnerHardening.test.ts (433 lines)
@@ -57,17 +59,17 @@ apps/web/
     ├── engine/
     │   ├── engineContext.ts (86 lines)
     │   ├── historyService.ts (184 lines)
-    │   ├── planService.ts (250 lines)
+    │   ├── planService.ts (305 lines)
     │   └── sessionRunner.ts (669 lines)
     ├── i18n/
-    │   └── index.ts (663 lines)
+    │   └── index.ts (761 lines)
     ├── screens/
     │   ├── AppearanceLab.tsx (244 lines)
-    │   ├── HomeScreen.tsx (394 lines)
+    │   ├── HomeScreen.tsx (429 lines)
     │   ├── MoreScreen.tsx (531 lines)
     │   ├── ProgressScreen.tsx (174 lines)
     │   ├── TrainScreen.tsx (428 lines)
-    │   └── WorkoutRunnerScreen.tsx (1020 lines)
+    │   └── WorkoutRunnerScreen.tsx (1039 lines)
     ├── storage/
     │   ├── idb.ts (59 lines)
     │   ├── index.ts (4 lines)
@@ -165,7 +167,17 @@ packages/
 
 ---
 
-## 3. Files Changed in this Task (Phase 4C — Device Auth Client)
+## 3. Files Changed in this Task (E1b Residuals — honest UI + persistent device id)
+- `apps/web/src/bootstrap.ts` (new helper: `getPersistentDeviceId` — one UUIDv7 per installation in kv `hfos.device_id`, corrupt values regenerated).
+- `apps/web/src/engine/planService.ts` (plan events carry the persistent device id; `DayDecisionSummary` honest: unit from `PlanDay.unit`, reasons = typed i18n keys + REAL top-3 term contributions from the day's DecisionRecord, `revision_reason` passthrough, `inputs_defaulted` surfaced).
+- `apps/web/src/screens/WorkoutRunnerScreen.tsx` (session events carry the persistent device id; hard-coded `device-redmi12-local` removed).
+- `apps/web/src/screens/HomeScreen.tsx` (why-sheet renders typed reasons + numeric contribution chips; legacy string summaries labeled as estimates; defaulted-inputs honesty banner).
+- `apps/web/src/engine/engineContext.ts` (**bug fix**: `SystemIdGenerator` produced malformed UUIDv7s — 10-char final group; now 18 random hex chars, true 8-4-4-4-12).
+- `apps/web/src/i18n/index.ts` (20 new keys in both dicts; dead mock keys `train.session_unit`/`train.session_duration` removed).
+- `apps/web/src/__tests__/planService.test.ts` (3 new tests: device id persistence/format, summary honesty vs DecisionRecord, revision passthrough).
+- `docs/REPORT_E1B_RESIDUAL.md`, `docs/STATE.md`.
+
+### Previous: Files Changed in this Task (Phase 4C — Device Auth Client)
 - `apps/web/src/supabase/deviceKeys.ts` (new, 159 lines: WebCrypto ECDSA P-256 core — `generateDeviceKeyPair` with a non-extractable private key, `signNonce` = ECDSA/SHA-256 over the raw UTF-8 nonce bytes → unpadded base64url, `exportPublicJwk` minimal `kty/crv/x/y`, `isValidPublicDeviceJwk` mirroring the server's `validPublicJwk`, `verifyNonceSignature` replicating the Edge Function's verification byte-for-byte, base64url codecs, `isCryptoPrivateKey` duck-type guard).
 - `apps/web/src/supabase/deviceKeyStore.ts` (new, 100 lines: `DeviceKeyStore` port + `StoredDeviceRecord` (`device_id` nullable for orphans, `public_jwk`, non-extractable `private_key` persisted via IndexedDB structured clone — no secret ever stringified); `InMemoryDeviceKeyStore`, `KeyValueDeviceKeyStore` over the existing `kv` store, defensive `storedDeviceRecordFromUnknown` rehydration).
 - `apps/web/src/supabase/deviceAuthClient.ts` (new, 377 lines: `device-auth` Edge Function client — `callDeviceAuth` POST transport with apikey/Bearer headers, abortable timeout, honest result objects; `enrollCurrentDevice` with orphan-key reuse, `verifyCurrentDevice` challenge→sign→verify, `revokeCurrentDevice` with local clear-on-success, `recoverDevice` with fresh keys + normalized code, `fetchDeviceStatus`; server error codes verbatim, client-synthesized codes documented).
@@ -233,7 +245,7 @@ packages/
 
 ## 4. Test Counts per Package
 
-Total: **34 test files, 284 tests passing**.
+Total: **34 test files, 287 tests passing**.
 - `packages/engine-core`: 71 tests (engine-core: 59, engine-honesty-e1a: 9, engine-guard: 1, numeric-literals: 1, smoke: 1)
 - `packages/contracts`: 21 tests
 - `packages/config`: 16 tests
@@ -241,7 +253,7 @@ Total: **34 test files, 284 tests passing**.
 - `packages/library`: 9 tests (library: 7, smoke: 2)
 - `packages/sim`: 4 tests (simulation: 1, smoke: 3)
 - `packages/ports`: 1 test
-- `apps/web`: 155 tests (deviceAuthClient: 25, sessionRunnerHardening: 12, authClient: 14, deviceFlow: 9, deviceKeys: 10, historyService: 9, workoutRunnerScreen: 10, syncTransport: 7, syncService: 6, supabaseProbe: 5, cloudWiring: 5, sessionRunner: 6, planService: 6, storage: 4, appearance: 5, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
+- `apps/web`: 158 tests (deviceAuthClient: 25, sessionRunnerHardening: 12, authClient: 14, deviceFlow: 9, deviceKeys: 10, historyService: 9, workoutRunnerScreen: 10, planService: 9, syncTransport: 7, syncService: 6, supabaseProbe: 5, cloudWiring: 5, sessionRunner: 6, storage: 4, appearance: 5, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
 
 ---
 
@@ -254,7 +266,8 @@ Total: **34 test files, 284 tests passing**.
 - **Done (Phase 4C client-side)**: full device auth client — `deviceKeys` (ECDSA P-256, non-extractable private key, server-mirrored signing/validation), `deviceKeyStore` (port + IndexedDB structured-clone persistence of the `CryptoKey`), `deviceAuthClient` (enroll / challenge→sign→verify / revoke / recover / status against the deployed function contract). 35 new tests (total 250), all green; no app wiring yet — the UI layer is intentionally untouched.
 - **Done (Phase 4D2)**: auth integration + sync orchestration — `authClient` (Auth REST + session store), `deviceFlow` (status/enroll/verify/recovery state machine), `syncService` (idempotent push+pull+merge), `useCloudSession` hook, `CloudAccountCard` UI (More › About) with full en/ar i18n (28 new keys), App wiring (`cloud.sync()` after workout completion). 34 new tests (total 284), all green; bundle 137.47/300 KB.
 - **Done (Phase 4D1)**: sync data layer — `session_events` migration (append-only, user + device-session RLS) and `syncTransport` (batched idempotent push, cursor pull) with 7 tests. Migration applied live by the owner and externally verified: anon `GET /rest/v1/session_events` answers `401 42501 permission denied` (table present, revoked-privilege posture).
-- **Deployment note**: nothing to deploy server-side for 4C/4D2 — the `device-auth` function, the M0-15 schema, and the `session_events` table are all live and verified. The remaining manual step is the live end-to-end rehearsal: sign in → enroll (save the 8 codes) → verify → `GET /rest/v1/session_events` with the verified token must return `[]` (not 401).
+- **Done (E1b residuals)**: honest UI + persistent device id — plan/session events carry a persistent UUIDv7 device id (`hfos.device_id` in kv) instead of `redmi12_client`/`device-redmi12-local`; decision summaries derive unit from `PlanDay.unit`, reasons from the day's DecisionRecord term_values (top-3 real contributions as i18n keys + 0–100 chips) or `reason_code`, real `revision_reason` passthrough, defaulted-inputs honesty banner; fixed `SystemIdGenerator` malformed-UUID bug (10-char final group). 3 new tests (total 287), CI green.
+- **Deployment note**: nothing to deploy server-side for 4C/4D2 — the `device-auth` function, the M0-15 schema, and the `session_events` table are all live and verified. The remaining manual step is the live end-to-end rehearsal: sign in → enroll (save the 8 codes) → verify → `GET /rest/v1/session_events` with the verified token must return `[]` (not 401). A ready-made rehearsal script exists at `scripts/e2e_device_auth.mjs` (see the E2E report once landed).
 - **Possible next (4D3 candidates)**: auto-sync on app start when ready (currently: after workout completion + manual Sync now), a deauthorize-device action (server `revoke` is implemented client-side but not surfaced), and cleaning up expired challenges/sessions via a scheduled SQL job.
 
 ---
