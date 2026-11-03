@@ -92,6 +92,21 @@ Deno.serve(async (req) => {
       .eq('user_id', userId).is('revoked_at', null);
     return count ?? 0;
   }
+  // Phase 4D5 contract v2: per-device rows for the Account card. Requires the
+  // last_seen_at column (20261105000000 migration); if it is missing the
+  // query errors and we degrade to the v1 payload instead of failing status.
+  async function activeDeviceRows(): Promise<Record<string, unknown>[] | null> {
+    try {
+      const { data, error } = await admin.from('authorized_devices')
+        .select('id, label, created_at, last_seen_at')
+        .eq('user_id', userId).is('revoked_at', null)
+        .order('created_at', { ascending: true });
+      if (error || !data) return null;
+      return data as Record<string, unknown>[];
+    } catch {
+      return null; // pre-migration database: fall back to the bare count
+    }
+  }
   async function sessionVerified(): Promise<boolean> {
     const { data } = await admin.from('device_sessions')
       .select('expires_at, revoked_at')
@@ -119,7 +134,12 @@ Deno.serve(async (req) => {
 
   try {
     if (action === 'status') {
-      return json(200, { active_devices: await activeDeviceCount(), session_verified: await sessionVerified() });
+      const devices = await activeDeviceRows();
+      return json(200, {
+        active_devices: devices ? devices.length : await activeDeviceCount(),
+        session_verified: await sessionVerified(),
+        ...(devices !== null ? { devices } : {}),
+      });
     }
 
     if (action === 'enroll') {
@@ -164,6 +184,15 @@ Deno.serve(async (req) => {
         expires_at: expires, revoked_at: null,
       });
       if (error) return json(500, { error: 'session_failed' });
+      // Phase 4D5: stamp this device's last-seen (best-effort — a missing
+      // column on a pre-migration database must never fail a verification)
+      try {
+        await admin.from('authorized_devices')
+          .update({ last_seen_at: new Date().toISOString() })
+          .eq('id', deviceId).eq('user_id', userId);
+      } catch {
+        /* pre-migration database: last-seen stays untouched */
+      }
       return json(200, { ok: true, expires_at: expires });
     }
 

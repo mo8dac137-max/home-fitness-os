@@ -148,6 +148,19 @@ export async function callDeviceAuth<T>(
 export interface DeviceStatus {
   active_devices: number;
   session_verified: boolean;
+  /**
+   * Phase 4D5 contract extension: per-device rows for the account card.
+   * null = the deployed function predates the extension (or sent garbage);
+   * the UI then falls back to the bare active_devices count.
+   */
+  devices: DeviceStatusRow[] | null;
+}
+
+export interface DeviceStatusRow {
+  device_id: string;
+  label: string;
+  created_at: string | null;
+  last_seen_at: string | null;
 }
 
 export interface EnrollOutcome {
@@ -180,7 +193,41 @@ export async function fetchDeviceStatus(
   if (typeof active !== 'number' || !Number.isFinite(active) || typeof verified !== 'boolean') {
     return failure<DeviceStatus>('bad_response', res.http_status, 'malformed status payload');
   }
-  return { ok: true, data: { active_devices: active, session_verified: verified }, http_status: res.http_status };
+  return {
+    ok: true,
+    data: {
+      active_devices: active,
+      session_verified: verified,
+      devices: parseDeviceRows(d['devices']),
+    },
+    http_status: res.http_status,
+  };
+}
+
+/**
+ * Phase 4D5: defensive parse of the optional `devices` array. Absent or
+ * malformed -> null (UI degrades to the bare count); malformed entries are
+ * dropped individually so one bad row never hides the rest.
+ */
+export function parseDeviceRows(raw: unknown): DeviceStatusRow[] | null {
+  if (!Array.isArray(raw)) return null;
+  const rows: DeviceStatusRow[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') continue;
+    const e = entry as Record<string, unknown>;
+    const id = e['id'];
+    const label = e['label'];
+    if (typeof id !== 'string' || id === '' || typeof label !== 'string') continue;
+    const createdAt = e['created_at'];
+    const lastSeen = e['last_seen_at'];
+    rows.push({
+      device_id: id,
+      label,
+      created_at: typeof createdAt === 'string' ? createdAt : null,
+      last_seen_at: typeof lastSeen === 'string' ? lastSeen : null,
+    });
+  }
+  return rows.length > 0 ? rows : null;
 }
 
 /**

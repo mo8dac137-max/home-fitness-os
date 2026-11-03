@@ -14,6 +14,8 @@ import {
 import {
   type AppearanceSettings,
   DEFAULT_APPEARANCE,
+  applyAppearanceToDOM,
+  effectiveAppearance,
 } from './appearance.js';
 import type { MockUserProfile } from '@hfos/sim';
 
@@ -38,6 +40,20 @@ export default function App() {
 
   // Cloud session (Phase 4D2): optional, never blocks the local-first app
   const cloud = useCloudSession();
+
+  // Phase 4D5: while following the system theme, an OS scheme flip while the
+  // app is open re-applies the scheme-matching skin live (pre-paint is handled
+  // in bootstrap; persistence in saveAppearance).
+  useEffect(() => {
+    if (appearance.theme_mode !== 'system') return;
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onSchemeChange = (): void => {
+      applyAppearanceToDOM(effectiveAppearance(appearance));
+    };
+    mq.addEventListener('change', onSchemeChange);
+    return () => mq.removeEventListener('change', onSchemeChange);
+  }, [appearance]);
 
   // Plan state
   const [plan, setPlan] = useState<Plan | null>(null);

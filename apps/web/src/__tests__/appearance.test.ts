@@ -30,6 +30,9 @@ describe('Appearance Lab Settings & Persistence', () => {
   it('provides sensible default settings', () => {
     expect(DEFAULT_APPEARANCE).toEqual({
       style: 'clay',
+      theme_mode: 'manual',
+      style_light: 'paper',
+      style_dark: 'clay',
       accent: 'lime',
       depth: 'medium',
       radius: 'round',
@@ -57,6 +60,9 @@ describe('Appearance Lab Settings & Persistence', () => {
   it('preserves valid custom appearance settings', () => {
     const custom: AppearanceSettings = {
       style: 'glass',
+      theme_mode: 'system',
+      style_light: 'neu',
+      style_dark: 'oled',
       accent: 'cyan',
       depth: 'strong',
       radius: 'extra_round',
@@ -87,6 +93,9 @@ describe('Appearance Lab Settings & Persistence', () => {
   it('persists and loads settings from IndexedDB kv store', async () => {
     const custom: AppearanceSettings = {
       style: 'neon',
+      theme_mode: 'system',
+      style_light: 'paper',
+      style_dark: 'aurora',
       accent: 'coral',
       depth: 'soft',
       radius: 'compact',
@@ -186,6 +195,9 @@ describe('Appearance Lab Settings & Persistence', () => {
     try {
       const settings: AppearanceSettings = {
         style: 'neu',
+        theme_mode: 'manual',
+        style_light: 'paper',
+        style_dark: 'clay',
         accent: 'violet',
         depth: 'strong',
         radius: 'extra_round',

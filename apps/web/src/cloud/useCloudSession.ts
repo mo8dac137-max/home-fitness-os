@@ -14,6 +14,7 @@ import {
   fetchDeviceStatus,
   loadEnrolledDeviceId,
   revokeCurrentDevice,
+  type DeviceStatusRow,
 } from '../supabase/deviceAuthClient.js';
 import { KeyValueDeviceKeyStore } from '../supabase/deviceKeyStore.js';
 import { syncNow, type SyncSummary } from '../sync/syncService.js';
@@ -47,6 +48,8 @@ export interface CloudSessionState {
   syncBusy: boolean;
   /** Server-reported active device count (null = unknown/not fetched). */
   activeDevices: number | null;
+  /** Per-device rows from the server (null = contract v1 or unknown). */
+  deviceRows: DeviceStatusRow[] | null;
   /** This browser's enrolled device id (informational, from the key store). */
   deviceId: string | null;
   /** Wall-clock ms of the last completed sync round (null = never). */
@@ -77,6 +80,7 @@ const INITIAL: CloudSessionState = {
   lastSync: null,
   syncBusy: false,
   activeDevices: null,
+  deviceRows: null,
   deviceId: null,
   lastSyncAt: null,
 };
@@ -91,6 +95,7 @@ const SIGNED_OUT_RESET: Partial<CloudSessionState> = {
   lastSync: null,
   busy: false,
   activeDevices: null,
+  deviceRows: null,
   deviceId: null,
   lastSyncAt: null,
 };
@@ -263,6 +268,7 @@ export function useCloudSession(): CloudSessionHandle {
       deviceError: null,
       lastSync: null,
       activeDevices: null,
+      deviceRows: null,
       deviceId: null,
       lastSyncAt: null,
     });
@@ -369,16 +375,18 @@ export function useCloudSession(): CloudSessionHandle {
     const { deviceStore } = openStores();
     const deviceId = await loadEnrolledDeviceId(deviceStore);
     patch({ deviceId });
-    // informational only: a failed status probe just leaves the count unknown
+    // informational only: a failed status probe just leaves the facts unknown
     const status = await fetchDeviceStatus(env.config, token);
-    if (status.ok) patch({ activeDevices: status.data.active_devices });
+    if (status.ok) {
+      patch({ activeDevices: status.data.active_devices, deviceRows: status.data.devices });
+    }
   }, [patch]);
 
   useEffect(() => {
     if (state.stage === 'signed_out') {
       if (deviceInfoEpochRef.current) {
         deviceInfoEpochRef.current = false;
-        patch({ activeDevices: null, deviceId: null, lastSyncAt: null });
+        patch({ activeDevices: null, deviceRows: null, deviceId: null, lastSyncAt: null });
       }
       return;
     }

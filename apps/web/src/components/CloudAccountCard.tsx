@@ -39,6 +39,17 @@ function formatClock(ms: number): string {
   }
 }
 
+/** Phase 4D5: short local timestamp for a device's last_seen_at. */
+function formatSeen(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '--';
+    return d.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+  } catch {
+    return '--';
+  }
+}
+
 export const CloudAccountCard: React.FC<{ cloud: CloudSessionHandle }> = ({ cloud }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -184,33 +195,63 @@ export const CloudAccountCard: React.FC<{ cloud: CloudSessionHandle }> = ({ clou
             )}
           </div>
 
-          {/* Phase 4D4: honest device/sync facts — server truth first, then
-              local identity, then the last finished round. Each line renders
-              only when its fact is actually known (no invented values). */}
-          {(cloud.activeDevices !== null ||
-            cloud.deviceId !== null ||
-            cloud.lastSyncAt !== null) && (
-            <div className="flex flex-col gap-1">
-              {cloud.activeDevices !== null && (
-                <p className="text-[10px] text-[var(--muted)] ltr-num">
-                  {t('account.active_devices').replace('{count}', String(cloud.activeDevices))}
-                </p>
-              )}
-              {cloud.deviceId !== null && (
-                <p
-                  className="text-[10px] text-[var(--muted)] ltr-num font-mono truncate"
-                  dir="ltr"
-                  title={cloud.deviceId}
-                >
-                  {t('account.this_device').replace('{id}', cloud.deviceId.slice(0, 8))}
-                </p>
-              )}
-              {cloud.lastSyncAt !== null && (
-                <p className="text-[10px] text-[var(--muted)] ltr-num">
-                  {t('account.last_sync').replace('{time}', formatClock(cloud.lastSyncAt))}
-                </p>
-              )}
-            </div>
+          {/* Phase 4D4/4D5: honest device/sync facts. With contract v2 the
+              server's per-device rows lead (label + last seen + this-device
+              chip); without them the card falls back to the bare count and
+              the local short id. Each line renders only when its fact is
+              actually known (no invented values). */}
+          {cloud.deviceRows !== null && cloud.deviceRows.length > 0 ? (
+            <ul className="flex flex-col gap-1.5">
+              {cloud.deviceRows.map((row) => {
+                const isCurrent = cloud.deviceId !== null && row.device_id === cloud.deviceId;
+                return (
+                  <li
+                    key={row.device_id}
+                    className="flex items-center justify-between gap-2 min-w-0"
+                  >
+                    <span className="text-[10px] text-[var(--muted)] truncate" dir="ltr">
+                      {row.label}
+                    </span>
+                    <span className="flex items-center gap-1.5 shrink-0">
+                      {isCurrent && (
+                        <span className="text-[9px] font-bold text-[var(--accent)] uppercase tracking-wide">
+                          {t('account.device_row_current')}
+                        </span>
+                      )}
+                      <span className="text-[10px] text-[var(--muted)] ltr-num">
+                        {row.last_seen_at !== null
+                          ? t('account.device_last_seen').replace('{time}', formatSeen(row.last_seen_at))
+                          : t('account.device_never_seen')}
+                      </span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            (cloud.activeDevices !== null || cloud.deviceId !== null) && (
+              <div className="flex flex-col gap-1">
+                {cloud.activeDevices !== null && (
+                  <p className="text-[10px] text-[var(--muted)] ltr-num">
+                    {t('account.active_devices').replace('{count}', String(cloud.activeDevices))}
+                  </p>
+                )}
+                {cloud.deviceId !== null && (
+                  <p
+                    className="text-[10px] text-[var(--muted)] ltr-num font-mono truncate"
+                    dir="ltr"
+                    title={cloud.deviceId}
+                  >
+                    {t('account.this_device').replace('{id}', cloud.deviceId.slice(0, 8))}
+                  </p>
+                )}
+              </div>
+            )
+          )}
+          {cloud.lastSyncAt !== null && (
+            <p className="text-[10px] text-[var(--muted)] ltr-num">
+              {t('account.last_sync').replace('{time}', formatClock(cloud.lastSyncAt))}
+            </p>
           )}
 
           <ClayButton

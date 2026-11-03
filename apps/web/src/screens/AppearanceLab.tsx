@@ -5,12 +5,15 @@ import {
   DEFAULT_APPEARANCE,
   STYLE_PRESETS,
   STYLE_VARIANTS,
+  resolveEffectiveStyle,
+  systemPrefersDark,
   type AccentPreset,
   type ClayDepth,
   type CornerRadius,
   type Density,
   type MotionMode,
   type HapticsMode,
+  type ThemeMode,
 } from '../appearance.js';
 import { t, type I18nKey } from '../i18n/index.js';
 import { ClayCard } from '../components/ClayCard.js';
@@ -101,17 +104,50 @@ export const AppearanceLab: React.FC<AppearanceLabProps> = ({
         </ClayCard>
       </div>
 
-      {/* Control 1: Visual Style Variant (skins) */}
+      {/* Control 1: Visual Style Variant (skins) + theme mode (4D5) */}
       <div className="flex flex-col gap-2">
         <SectionHeader title={t('appearance.style_label')} />
+
+        {/* Theme mode: manual keeps one fixed skin; system follows the OS
+            prefers-color-scheme and keeps a skin per scheme. */}
+        <div className="grid grid-cols-2 gap-2">
+          {(['manual', 'system'] as ThemeMode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => update({ theme_mode: m })}
+              className={`touch-target p-3 rounded-[var(--radius-chip)] border text-xs font-bold transition-motion cursor-pointer active:scale-95 ${
+                settings.theme_mode === m
+                  ? 'border-[var(--accent)] bg-white/10 text-[var(--accent)]'
+                  : 'border-white/5 bg-[var(--surface-flat)] text-[var(--muted)]'
+              }`}
+            >
+              {t(`appearance.theme_mode_${m}` as I18nKey)}
+            </button>
+          ))}
+        </div>
+        {settings.theme_mode === 'system' && (
+          <p className="text-[10px] text-[var(--muted)] leading-relaxed">
+            {t('appearance.theme_mode_hint')}
+          </p>
+        )}
+
         <div className="grid grid-cols-3 gap-2">
           {STYLE_VARIANTS.map((variant) => {
             const preset = STYLE_PRESETS[variant];
-            const isSelected = settings.style === variant;
+            // WYSIWYG: in system mode the highlight and the click target follow
+            // the skin currently painted (the active scheme's preference).
+            const effectiveStyle = resolveEffectiveStyle(settings, systemPrefersDark());
+            const isSelected = effectiveStyle === variant;
+            const pickTarget: Partial<AppearanceSettings> =
+              settings.theme_mode === 'system'
+                ? systemPrefersDark()
+                  ? { style_dark: variant }
+                  : { style_light: variant }
+                : { style: variant };
             return (
               <button
                 key={variant}
-                onClick={() => update({ style: variant })}
+                onClick={() => update(pickTarget)}
                 className={`touch-target p-3 rounded-[var(--radius-chip)] border flex flex-col items-center justify-center gap-2 transition-motion cursor-pointer active:scale-95 ${
                   isSelected
                     ? 'border-[var(--accent)] bg-white/10 text-[var(--accent)]'

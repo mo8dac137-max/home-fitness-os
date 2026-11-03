@@ -16,9 +16,16 @@ export type CornerRadius = 'compact' | 'round' | 'extra_round';
 export type Density = 'comfortable' | 'compact';
 export type MotionMode = 'full' | 'reduced';
 export type HapticsMode = 'on' | 'off';
+/** Phase 4D5: manual keeps one fixed skin; system follows prefers-color-scheme. */
+export type ThemeMode = 'manual' | 'system';
 
 export interface AppearanceSettings {
   style: StyleVariant;
+  theme_mode: ThemeMode;
+  /** Skin applied while the system is in light mode (theme_mode = system). */
+  style_light: StyleVariant;
+  /** Skin applied while the system is in dark mode (theme_mode = system). */
+  style_dark: StyleVariant;
   accent: AccentPreset;
   depth: ClayDepth;
   radius: CornerRadius;
@@ -93,6 +100,9 @@ export const STYLE_PRESETS: Record<StyleVariant, { labelKey: string; bg: string;
 
 export const DEFAULT_APPEARANCE: AppearanceSettings = {
   style: 'clay',
+  theme_mode: 'manual',
+  style_light: 'paper',
+  style_dark: 'clay',
   accent: 'lime',
   depth: 'medium',
   radius: 'round',
@@ -100,6 +110,43 @@ export const DEFAULT_APPEARANCE: AppearanceSettings = {
   motion: 'full',
   haptics: 'on',
 };
+
+/** Skins that paint a dark page background (everything except neu/paper/brutal). */
+const DARK_STYLES: readonly StyleVariant[] = ['clay', 'glass', 'mono', 'neon', 'aurora', 'oled'];
+
+export function isDarkStyle(style: StyleVariant): boolean {
+  return DARK_STYLES.includes(style);
+}
+
+/**
+ * Phase 4D5: the skin actually painted.
+ * - manual: exactly `style` (pre-4D5 behavior, byte-identical defaults).
+ * - system: `style_dark` while the OS is dark, `style_light` while light.
+ */
+export function resolveEffectiveStyle(settings: AppearanceSettings, systemDark: boolean): StyleVariant {
+  if (settings.theme_mode === 'system') {
+    return systemDark ? settings.style_dark : settings.style_light;
+  }
+  return settings.style;
+}
+
+/** Browser read of prefers-color-scheme; defaults to dark outside a browser. */
+export function systemPrefersDark(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return true;
+  try {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * The settings actually applied to the DOM: the same settings with `style`
+ * resolved through the theme mode. Persistence always keeps the raw settings.
+ */
+export function effectiveAppearance(settings: AppearanceSettings): AppearanceSettings {
+  return { ...settings, style: resolveEffectiveStyle(settings, systemPrefersDark()) };
+}
 
 export const KV_KEY_APPEARANCE = 'appearance';
 
@@ -113,6 +160,22 @@ export function sanitizeAppearance(raw: unknown): AppearanceSettings {
   const style: StyleVariant = STYLE_VARIANTS.includes(s.style as StyleVariant)
     ? (s.style as StyleVariant)
     : DEFAULT_APPEARANCE.style;
+  const storedStyleIsValid = style === s.style;
+
+  // Phase 4D5 theme mode. A payload from before this phase has neither key:
+  // it keeps `manual` (zero behavior change), and its valid stored style
+  // becomes the preference for the mode that skin actually belongs to.
+  const theme_mode: ThemeMode = s.theme_mode === 'system' ? 'system' : 'manual';
+  const style_dark: StyleVariant = STYLE_VARIANTS.includes(s.style_dark as StyleVariant)
+    ? (s.style_dark as StyleVariant)
+    : storedStyleIsValid && isDarkStyle(style)
+      ? style
+      : DEFAULT_APPEARANCE.style_dark;
+  const style_light: StyleVariant = STYLE_VARIANTS.includes(s.style_light as StyleVariant)
+    ? (s.style_light as StyleVariant)
+    : storedStyleIsValid && !isDarkStyle(style)
+      ? style
+      : DEFAULT_APPEARANCE.style_light;
 
   const accent: AccentPreset =
     s.accent === 'lime' ||
@@ -149,7 +212,7 @@ export function sanitizeAppearance(raw: unknown): AppearanceSettings {
       ? s.haptics
       : DEFAULT_APPEARANCE.haptics;
 
-  return { style, accent, depth, radius, density, motion, haptics };
+  return { style, theme_mode, style_light, style_dark, accent, depth, radius, density, motion, haptics };
 }
 
 /**
@@ -203,10 +266,12 @@ export async function loadAppearance(): Promise<AppearanceSettings> {
 
 /**
  * Persists appearance settings to IndexedDB KV store and applies them immediately.
+ * Persistence keeps the raw settings; the DOM receives the theme-mode-resolved
+ * effective appearance (Phase 4D5).
  */
 export async function saveAppearance(settings: AppearanceSettings): Promise<void> {
   const validated = sanitizeAppearance(settings);
   const kv = new KeyValueStore();
   await kv.set(KV_KEY_APPEARANCE, validated);
-  applyAppearanceToDOM(validated);
+  applyAppearanceToDOM(effectiveAppearance(validated));
 }

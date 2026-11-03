@@ -4,6 +4,7 @@ import { SystemIdGenerator } from './engine/engineContext.js';
 import {
   loadAppearance,
   applyAppearanceToDOM,
+  effectiveAppearance,
   type AppearanceSettings,
 } from './appearance.js';
 
@@ -51,8 +52,10 @@ export async function bootstrapMockUser(): Promise<{
   const kv = new KeyValueStore();
 
   // Load and apply appearance settings to documentElement immediately
+  // (theme-mode resolved: system mode paints the scheme-matching skin,
+  // Phase 4D5)
   const appearance = await loadAppearance();
-  applyAppearanceToDOM(appearance);
+  applyAppearanceToDOM(effectiveAppearance(appearance));
 
   const hasLaunched = await kv.get<boolean>(KV_KEY_HAS_LAUNCHED);
   const isFirstEverLaunch = !hasLaunched;
