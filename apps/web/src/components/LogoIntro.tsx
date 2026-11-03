@@ -26,7 +26,7 @@ export const LogoIntro: React.FC<LogoIntroProps> = ({ onComplete, isFirstEver })
   return (
     <div
       onClick={onComplete}
-      className="fixed inset-0 z-50 bg-[#0a0a10] flex flex-col items-center justify-center p-6 cursor-pointer select-none transition-motion"
+      className="fixed inset-0 z-50 bg-[var(--bg)] flex flex-col items-center justify-center p-6 cursor-pointer select-none transition-motion"
     >
       <div className="flex flex-col items-center gap-5 text-center">
         {/* Kinetic SVG Logo Ring */}

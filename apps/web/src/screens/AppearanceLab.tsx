@@ -3,6 +3,8 @@ import {
   type AppearanceSettings,
   ACCENT_PRESETS,
   DEFAULT_APPEARANCE,
+  STYLE_PRESETS,
+  STYLE_VARIANTS,
   type AccentPreset,
   type ClayDepth,
   type CornerRadius,
@@ -92,14 +94,48 @@ export const AppearanceLab: React.FC<AppearanceLabProps> = ({
           <ClayButton
             variant="primary"
             accentColor="var(--accent)"
-            className="w-full text-sm font-bold text-black"
+            className="w-full text-sm font-bold"
           >
             {t('appearance.preview_button')}
           </ClayButton>
         </ClayCard>
       </div>
 
-      {/* Control 1: Accent Color Presets */}
+      {/* Control 1: Visual Style Variant (skins) */}
+      <div className="flex flex-col gap-2">
+        <SectionHeader title={t('appearance.style_label')} />
+        <div className="grid grid-cols-3 gap-2">
+          {STYLE_VARIANTS.map((variant) => {
+            const preset = STYLE_PRESETS[variant];
+            const isSelected = settings.style === variant;
+            return (
+              <button
+                key={variant}
+                onClick={() => update({ style: variant })}
+                className={`touch-target p-3 rounded-[var(--radius-chip)] border flex flex-col items-center justify-center gap-2 transition-motion cursor-pointer active:scale-95 ${
+                  isSelected
+                    ? 'border-[var(--accent)] bg-white/10 text-[var(--accent)]'
+                    : 'border-white/5 bg-[var(--surface-flat)] text-[var(--muted)]'
+                }`}
+              >
+                <span
+                  aria-hidden
+                  className="w-8 h-8 rounded-full border border-white/20 shrink-0"
+                  style={{
+                    background: preset.bg,
+                    boxShadow: `inset 0 0 0 4px ${preset.surface}`,
+                  }}
+                />
+                <span className="text-[11px] font-bold text-center leading-tight">
+                  {t(preset.labelKey as I18nKey)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Control 2: Accent Color Presets */}
       <div className="flex flex-col gap-2">
         <SectionHeader title={t('appearance.accent_label')} />
         <div className="grid grid-cols-3 gap-2.5">
@@ -129,7 +165,7 @@ export const AppearanceLab: React.FC<AppearanceLabProps> = ({
         </div>
       </div>
 
-      {/* Control 2: Clay Depth */}
+      {/* Control 3: Clay Depth */}
       <div className="flex flex-col gap-2">
         <SectionHeader title={t('appearance.depth_label')} />
         <div className="grid grid-cols-3 gap-2">
@@ -152,7 +188,7 @@ export const AppearanceLab: React.FC<AppearanceLabProps> = ({
         </div>
       </div>
 
-      {/* Control 3: Corner Radius */}
+      {/* Control 4: Corner Radius */}
       <div className="flex flex-col gap-2">
         <SectionHeader title={t('appearance.radius_label')} />
         <div className="grid grid-cols-3 gap-2">
@@ -175,7 +211,7 @@ export const AppearanceLab: React.FC<AppearanceLabProps> = ({
         </div>
       </div>
 
-      {/* Control 4: Layout Density */}
+      {/* Control 5: Layout Density */}
       <div className="flex flex-col gap-2">
         <SectionHeader title={t('appearance.density_label')} />
         <div className="grid grid-cols-2 gap-2">
@@ -198,7 +234,7 @@ export const AppearanceLab: React.FC<AppearanceLabProps> = ({
         </div>
       </div>
 
-      {/* Control 5: Motion & Haptics */}
+      {/* Control 6: Motion & Haptics */}
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-2">
           <SectionHeader title={t('appearance.motion_label')} />

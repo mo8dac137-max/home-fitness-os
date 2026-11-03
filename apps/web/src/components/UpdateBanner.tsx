@@ -53,7 +53,7 @@ export const UpdateBanner: React.FC<UpdateBannerProps> = ({ onDismiss }) => {
       </div>
       <button
         onClick={handleApply}
-        className="touch-target px-4 py-1.5 rounded-[var(--radius-sm)] bg-[var(--accent)] text-[#0b0b0b] font-semibold text-xs tracking-wider uppercase transition-motion active:scale-95 cursor-pointer"
+        className="touch-target px-4 py-1.5 rounded-[var(--radius-sm)] bg-[var(--accent)] text-[var(--accent-ink)] font-semibold text-xs tracking-wider uppercase transition-motion active:scale-95 cursor-pointer"
       >
         {t('update.apply_btn')}
       </button>

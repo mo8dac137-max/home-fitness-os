@@ -1,0 +1,86 @@
+/**
+ * Neubrutalism Skin for Home Fitness OS
+ *
+ * Activated by <html data-style="brutal"> (set by appearance.ts).
+ * Cream paper base, near-black ink, hard 2px borders and offset solid
+ * drop shadows with zero blur. Loud, honest geometry.
+ *
+ * Light-skin strategy:
+ * - Like the neu skin, this skin remaps Tailwind's var(--color-white)
+ *   to the dark ink so the hardcoded text-white utilities stay readable.
+ * - Bright accent presets fail contrast as text on cream, so
+ *   appearance.ts applies the accent as an ink-mixed color-mix value
+ *   when style === 'brutal' (see accentValueForStyle).
+ * - Corner identity: brutalism keeps hard corners, so the user radius
+ *   preference is scaled down (x0.22) instead of ignored outright.
+ *
+ * Performance rules:
+ * - Solid shadows, no blur radius at all — the cheapest light skin to
+ *   composite after mono.
+ * - Never animate box-shadow (press states swap to an inset hard shadow).
+ */
+
+:root[data-style='brutal'] {
+  --bg: #f5f1e6;
+  --clay-1: #fffdf5;
+  --clay-2: #f6f1e1;
+  --surface: #fffdf5;
+  --surface-2: #f8f3e6;
+  --surface-flat: #efe9d8;
+  --text: #16150f;
+  --muted: #6b6753;
+  --danger: #e5484d;
+  --ok: #1f9d55;
+
+  /* Ink placed ON TOP of the (ink-mixed, darker) accent */
+  --accent-ink: #ffffff;
+
+  /* Remap Tailwind's white utilities to dark ink for the light surface */
+  --color-white: #16150f;
+}
+
+/* Flat cream ambient: no gradient blobs, brutalism is honest about it */
+html[data-style='brutal'],
+html[data-style='brutal'] body {
+  background-image: none;
+}
+
+/* Hero card: cream panel + hard 2px ink border + offset solid shadow */
+html[data-style='brutal'] .clay {
+  background: var(--surface);
+  border-radius: calc(var(--r-lg) * 0.22);
+  border: 2px solid var(--text);
+  box-shadow: calc(6px * var(--depth)) calc(6px * var(--depth)) 0 0 var(--text);
+}
+
+/* Small tile: shorter throw */
+html[data-style='brutal'] .clay-sm {
+  background: var(--surface);
+  border-radius: calc(var(--r-lg) * 0.22);
+  border: 2px solid var(--text);
+  box-shadow: calc(3px * var(--depth)) calc(3px * var(--depth)) 0 0 var(--text);
+}
+
+/* Pressed: the shadow collapses under the panel */
+html[data-style='brutal'] .clay-pressed {
+  box-shadow: inset 3px 3px 0 0 var(--text) !important;
+}
+
+/* Accent action: ink-mixed accent block, white ink, hard shadow */
+html[data-style='brutal'] .clay-accent {
+  --c: var(--accent);
+  background: var(--c);
+  color: #ffffff;
+  font-weight: 700;
+  border-radius: calc(var(--r-lg) * 0.22);
+  border: 2px solid var(--text);
+  box-shadow: calc(4px * var(--depth)) calc(4px * var(--depth)) 0 0 var(--text);
+}
+
+/* Flat surface for dense lists */
+html[data-style='brutal'] .clay-flat {
+  background: var(--surface-flat);
+  border-radius: calc(var(--r-lg) * 0.22);
+  border: 2px solid var(--text);
+  box-shadow: none;
+}

@@ -1,0 +1,100 @@
+/**
+ * Glassmorphism Skin for Home Fitness OS
+ *
+ * Activated by <html data-style="glass"> (set by appearance.ts).
+ * Frosted translucent panels over vivid ambient color blobs.
+ *
+ * Performance rules:
+ * - backdrop-filter ONLY on .clay (hero cards, max 6 per screen, same
+ *   budget as the clay skin) and .clay-accent (primary buttons).
+ * - .clay-sm / .clay-flat use plain translucent backgrounds, never blur.
+ * - Never animate backdrop-filter or box-shadow; press states animate
+ *   transform only (inherited .clay-interactive).
+ * - Logical properties for RTL are inherited from the base layout.
+ */
+
+:root[data-style='glass'] {
+  --bg: #0c0e1d;
+  --clay-1: rgb(255 255 255 / 0.1);
+  --clay-2: rgb(255 255 255 / 0.04);
+  --surface: rgb(255 255 255 / 0.07);
+  --surface-2: rgb(255 255 255 / 0.05);
+  --surface-flat: rgb(255 255 255 / 0.04);
+  --text: #f4f5fb;
+  --muted: #a7abc4;
+  --danger: #ff6b81;
+  --ok: #4cd964;
+}
+
+/* Vivid ambient blobs behind the frosted panels */
+html[data-style='glass'],
+html[data-style='glass'] body {
+  background-image:
+    radial-gradient(circle 420px at 12% -8%, rgb(124 92 255 / 0.34) 0%, transparent 100%),
+    radial-gradient(circle 380px at 92% 4%, rgb(38 208 255 / 0.26) 0%, transparent 100%),
+    radial-gradient(circle 460px at 50% 108%, rgb(255 92 168 / 0.22) 0%, transparent 100%);
+  background-repeat: no-repeat;
+}
+
+/* Hero glass card: frosted blur + light rim + soft drop */
+html[data-style='glass'] .clay {
+  background: linear-gradient(
+    135deg,
+    rgb(255 255 255 / calc(0.14 * var(--depth))),
+    rgb(255 255 255 / calc(0.05 * var(--depth)))
+  );
+  border-radius: var(--radius-clay);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid rgb(255 255 255 / 0.14);
+  box-shadow:
+    0 10px 34px rgb(6 8 24 / calc(0.45 * var(--depth))),
+    inset 1px 1px 0 rgb(255 255 255 / calc(0.16 * var(--depth))),
+    inset -1px -1px 0 rgb(255 255 255 / calc(0.05 * var(--depth)));
+}
+
+/* Small glass tiles: translucent only, no blur (long lists) */
+html[data-style='glass'] .clay-sm {
+  background: linear-gradient(
+    135deg,
+    rgb(255 255 255 / calc(0.09 * var(--depth))),
+    rgb(255 255 255 / calc(0.04 * var(--depth)))
+  );
+  border-radius: var(--radius-clay-sm);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  box-shadow:
+    0 4px 16px rgb(6 8 24 / calc(0.3 * var(--depth))),
+    inset 1px 1px 0 rgb(255 255 255 / 0.08);
+}
+
+/* Pressed state: panel thins out */
+html[data-style='glass'] .clay-pressed {
+  background: rgb(255 255 255 / calc(0.03 * var(--depth))) !important;
+  box-shadow:
+    inset 2px 2px 8px rgb(6 8 24 / calc(0.35 * var(--depth))),
+    inset -1px -1px 0 rgb(255 255 255 / 0.05) !important;
+}
+
+/* Accent action: solid accent core inside a glass rim */
+html[data-style='glass'] .clay-accent {
+  --c: var(--accent);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--c) 88%, #ffffff),
+    var(--c)
+  );
+  color: #08080c;
+  font-weight: 700;
+  border-radius: var(--radius-chip);
+  border: 1px solid rgb(255 255 255 / 0.28);
+  box-shadow:
+    0 8px 22px color-mix(in srgb, var(--c) calc(38% * var(--depth)), transparent),
+    inset 1px 1px 0 rgb(255 255 255 / 0.4);
+}
+
+/* Flat translucent surface for dense lists */
+html[data-style='glass'] .clay-flat {
+  background: rgb(255 255 255 / calc(0.045 * var(--depth)));
+  border-radius: var(--radius-clay-sm);
+  border: 1px solid rgb(255 255 255 / 0.08);
+}

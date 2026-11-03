@@ -1,0 +1,66 @@
+/**
+ * Mono Flat Skin for Home Fitness OS
+ *
+ * Activated by <html data-style="mono"> (set by appearance.ts).
+ * Swiss-style flat graphite surfaces: zero shadows, crisp 1px hairlines,
+ * pure geometry. Cheapest skin to render — everything is solid color.
+ */
+
+:root[data-style='mono'] {
+  --bg: #0f1114;
+  --clay-1: #171a1f;
+  --clay-2: #14171c;
+  --surface: #15181d;
+  --surface-2: #121519;
+  --surface-flat: #101317;
+  --text: #f3f5f7;
+  --muted: #8b929e;
+  --danger: #ff5d5d;
+  --ok: #4cd964;
+}
+
+/* Flat ambient: solid background, no gradient blobs */
+html[data-style='mono'],
+html[data-style='mono'] body {
+  background-image: none;
+}
+
+/* Hero card: flat panel + hairline */
+html[data-style='mono'] .clay {
+  background: var(--surface);
+  border-radius: var(--radius-clay);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  box-shadow: none;
+}
+
+/* Small tile: same recipe, hairline slightly dimmer */
+html[data-style='mono'] .clay-sm {
+  background: var(--surface);
+  border-radius: var(--radius-clay-sm);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  box-shadow: none;
+}
+
+/* Pressed: darkens instead of insetting */
+html[data-style='mono'] .clay-pressed {
+  background: var(--surface-flat) !important;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06) !important;
+}
+
+/* Accent action: solid accent block, dark ink, no gradient/glow */
+html[data-style='mono'] .clay-accent {
+  --c: var(--accent);
+  background: var(--c);
+  color: #0b0d10;
+  font-weight: 700;
+  border-radius: var(--radius-chip);
+  border: none;
+  box-shadow: none;
+}
+
+/* Flat surface for dense lists */
+html[data-style='mono'] .clay-flat {
+  background: var(--surface-flat);
+  border-radius: var(--radius-clay-sm);
+  border: 1px solid rgb(255 255 255 / 0.07);
+}

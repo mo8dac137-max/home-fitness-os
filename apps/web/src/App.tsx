@@ -155,7 +155,7 @@ export default function App() {
   }, [plan]);
 
   return (
-    <div className="flex-1 flex flex-col bg-[#0a0a10] text-[#f1f1f4] w-full min-h-screen relative overflow-x-hidden">
+    <div className="flex-1 flex flex-col bg-[var(--bg)] text-[var(--text)] w-full min-h-screen relative overflow-x-hidden">
       {/* Launch Splash Screen */}
       {showIntro && (
         <LogoIntro

@@ -1,0 +1,74 @@
+/**
+ * OLED Black Skin for Home Fitness OS
+ *
+ * Activated by <html data-style="oled"> (set by appearance.ts).
+ * True-black minimalism for AMOLED panels: #000 base, near-black
+ * surfaces separated by hairlines, zero glow. The battery-friendly
+ * night skin — pixels that are off stay off.
+ *
+ * Performance rules:
+ * - No shadows with any blur: gray bloom on pure black looks like dirt
+ *   and wakes extra pixels. Depth comes from hairlines + insets only.
+ * - No backdrop-filter anywhere in this skin.
+ * - Never animate box-shadow (press states keep the transform-only
+ *   budget from .clay-interactive).
+ */
+
+:root[data-style='oled'] {
+  --bg: #000000;
+  --clay-1: #0b0b0d;
+  --clay-2: #070708;
+  --surface: #0a0a0c;
+  --surface-2: #08080a;
+  --surface-flat: #050506;
+  --text: #f2f2f2;
+  --muted: #8a8a92;
+  --danger: #ff5d5d;
+  --ok: #46d16a;
+}
+
+/* Pure black ambient: no blobs, no glow — that is the whole point */
+html[data-style='oled'],
+html[data-style='oled'] body {
+  background-image: none;
+}
+
+/* Hero card: near-black panel lifted by a hairline + top highlight */
+html[data-style='oled'] .clay {
+  background: linear-gradient(145deg, var(--clay-1), var(--clay-2));
+  border-radius: var(--radius-clay);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / calc(0.04 * var(--depth)));
+}
+
+/* Small tile: dimmer hairline */
+html[data-style='oled'] .clay-sm {
+  background: linear-gradient(145deg, var(--clay-1), var(--clay-2));
+  border-radius: var(--radius-clay-sm);
+  border: 1px solid rgb(255 255 255 / 0.07);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / calc(0.03 * var(--depth)));
+}
+
+/* Pressed: the panel sinks to the flat black underneath */
+html[data-style='oled'] .clay-pressed {
+  background: var(--surface-flat) !important;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.05) !important;
+}
+
+/* Accent action: raw accent on black passes contrast — dark ink, no bloom */
+html[data-style='oled'] .clay-accent {
+  --c: var(--accent);
+  background: var(--c);
+  color: #000000;
+  font-weight: 700;
+  border-radius: var(--radius-chip);
+  border: none;
+  box-shadow: none;
+}
+
+/* Flat surface for dense lists */
+html[data-style='oled'] .clay-flat {
+  background: var(--surface-flat);
+  border-radius: var(--radius-clay-sm);
+  border: 1px solid rgb(255 255 255 / 0.06);
+}

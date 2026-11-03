@@ -1,5 +1,15 @@
 import { KeyValueStore } from './storage/index.js';
 
+export type StyleVariant =
+  | 'clay'
+  | 'glass'
+  | 'neu'
+  | 'mono'
+  | 'neon'
+  | 'aurora'
+  | 'brutal'
+  | 'paper'
+  | 'oled';
 export type AccentPreset = 'lime' | 'cyan' | 'coral' | 'violet' | 'amber' | 'mint';
 export type ClayDepth = 'soft' | 'medium' | 'strong';
 export type CornerRadius = 'compact' | 'round' | 'extra_round';
@@ -8,12 +18,51 @@ export type MotionMode = 'full' | 'reduced';
 export type HapticsMode = 'on' | 'off';
 
 export interface AppearanceSettings {
+  style: StyleVariant;
   accent: AccentPreset;
   depth: ClayDepth;
   radius: CornerRadius;
   density: Density;
   motion: MotionMode;
   haptics: HapticsMode;
+}
+
+/**
+ * Visual style variants (skins). Each id maps to a CSS file in
+ * styles/skins/<id>.css activated by the data-style attribute on <html>.
+ * clay = original Dark Clay recipes (base tokens.css + clay.css).
+ * Every skin overrides the same five recipe classes (.clay, .clay-sm,
+ * .clay-pressed, .clay-accent, .clay-flat) — no component ever branches
+ * on the active style.
+ */
+export const STYLE_VARIANTS: readonly StyleVariant[] = [
+  'clay',
+  'glass',
+  'neu',
+  'mono',
+  'neon',
+  'aurora',
+  'brutal',
+  'paper',
+  'oled',
+];
+
+/**
+ * Light skins (neu, paper, brutal) need an ink-safe accent: raw bright
+ * presets (lime, cyan, amber) fail contrast on a light surface when used
+ * as text. We darken via color-mix (valid CSS value) toward a per-skin ink
+ * target instead of overriding the user's choice. Dark skins use the raw
+ * preset hex.
+ */
+const INK_SAFE_ACCENT_MIX: Partial<Record<StyleVariant, string>> = {
+  neu: '#2a3050',
+  paper: '#3d3229',
+  brutal: '#26251c',
+};
+
+export function accentValueForStyle(style: StyleVariant, accentHex: string): string {
+  const target = INK_SAFE_ACCENT_MIX[style];
+  return target ? `color-mix(in srgb, ${accentHex} 70%, ${target})` : accentHex;
 }
 
 export const ACCENT_PRESETS: Record<AccentPreset, { hex: string; labelKey: string }> = {
@@ -25,7 +74,25 @@ export const ACCENT_PRESETS: Record<AccentPreset, { hex: string; labelKey: strin
   mint: { hex: '#5be3b1', labelKey: 'appearance.accent_mint' },
 };
 
+/**
+ * Per-skin metadata for the style picker swatches: i18n label key plus two
+ * representative colors (page background and card surface) rendered as a
+ * mini two-ring preview. Values mirror each skin's token overrides.
+ */
+export const STYLE_PRESETS: Record<StyleVariant, { labelKey: string; bg: string; surface: string }> = {
+  clay: { labelKey: 'appearance.style_clay', bg: '#0a0a10', surface: '#1e202b' },
+  glass: { labelKey: 'appearance.style_glass', bg: '#0c0e1d', surface: 'rgba(255, 255, 255, 0.22)' },
+  neu: { labelKey: 'appearance.style_neu', bg: '#e3e8f0', surface: '#e9edf4' },
+  mono: { labelKey: 'appearance.style_mono', bg: '#0f1114', surface: '#171a1f' },
+  neon: { labelKey: 'appearance.style_neon', bg: '#05060b', surface: '#0c0e1a' },
+  aurora: { labelKey: 'appearance.style_aurora', bg: '#07101d', surface: '#12233d' },
+  brutal: { labelKey: 'appearance.style_brutal', bg: '#f5f1e6', surface: '#fffdf5' },
+  paper: { labelKey: 'appearance.style_paper', bg: '#f7f3ea', surface: '#fffdf8' },
+  oled: { labelKey: 'appearance.style_oled', bg: '#000000', surface: '#0b0b0d' },
+};
+
 export const DEFAULT_APPEARANCE: AppearanceSettings = {
+  style: 'clay',
   accent: 'lime',
   depth: 'medium',
   radius: 'round',
@@ -42,6 +109,10 @@ export function sanitizeAppearance(raw: unknown): AppearanceSettings {
   }
 
   const s = raw as Record<string, unknown>;
+
+  const style: StyleVariant = STYLE_VARIANTS.includes(s.style as StyleVariant)
+    ? (s.style as StyleVariant)
+    : DEFAULT_APPEARANCE.style;
 
   const accent: AccentPreset =
     s.accent === 'lime' ||
@@ -78,7 +149,7 @@ export function sanitizeAppearance(raw: unknown): AppearanceSettings {
       ? s.haptics
       : DEFAULT_APPEARANCE.haptics;
 
-  return { accent, depth, radius, density, motion, haptics };
+  return { style, accent, depth, radius, density, motion, haptics };
 }
 
 /**
@@ -88,9 +159,12 @@ export function applyAppearanceToDOM(settings: AppearanceSettings): void {
   if (typeof document === 'undefined' || !document.documentElement) return;
   const root = document.documentElement;
 
-  // 1. Accent color
+  // 0. Visual style variant (activates the matching skin stylesheet)
+  root.setAttribute('data-style', settings.style);
+
+  // 1. Accent color (ink-safe mix on the light Neumorphism skin)
   const accentHex = ACCENT_PRESETS[settings.accent]?.hex || ACCENT_PRESETS.lime.hex;
-  root.style.setProperty('--accent', accentHex);
+  root.style.setProperty('--accent', accentValueForStyle(settings.style, accentHex));
 
   // 2. Depth multiplier: 0.6 / 1 / 1.4
   const depthMultiplier =

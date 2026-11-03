@@ -2,6 +2,16 @@
 @import "./styles/tokens.css";
 @import "./styles/clay.css";
 
+/* Visual style variants (activated by <html data-style="..."> from appearance.ts) */
+@import "./styles/skins/glass.css";
+@import "./styles/skins/neu.css";
+@import "./styles/skins/mono.css";
+@import "./styles/skins/neon.css";
+@import "./styles/skins/aurora.css";
+@import "./styles/skins/brutal.css";
+@import "./styles/skins/paper.css";
+@import "./styles/skins/oled.css";
+
 /* Mobile Invariants & Ambient Gradients (No background-attachment: fixed) */
 html,
 body {

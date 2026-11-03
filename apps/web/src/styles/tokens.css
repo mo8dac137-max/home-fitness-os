@@ -20,6 +20,7 @@
 
   /* Accent & Status Colors */
   --accent: #c6f432; /* Lime preset default */
+  --accent-ink: #08080c; /* Ink color to place ON TOP of the accent (light skins override to white) */
   --danger: #ff5d5d;
   --ok: #4cd964;
 

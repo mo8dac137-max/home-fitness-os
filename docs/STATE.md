@@ -2,7 +2,7 @@
 
 > Source of truth for repo structure, package exports, test coverage, and active settings keys.
 >
-> Test totals in §4 include Phase 4D3: 35 files / 294 tests.
+> Test totals in §4 include the Appearance Skins task: 35 files / 301 tests.
 
 ---
 
@@ -14,12 +14,12 @@ apps/web/
 ├── tsconfig.json (8 lines)
 └── src/
     ├── App.tsx (223 lines)
-    ├── appearance.ts (139 lines)
+    ├── appearance.ts (212 lines)
     ├── bootstrap.ts (105 lines)
-    ├── index.css (150 lines)
+    ├── index.css (159 lines)
     ├── main.tsx (14 lines)
     ├── __tests__/
-    │   ├── appearance.test.ts (125 lines)
+    │   ├── appearance.test.ts (242 lines)
     │   ├── authClient.test.ts (309 lines)
     │   ├── cloudWiring.test.ts (64 lines)
     │   ├── deviceAuthClient.test.ts (482 lines)
@@ -62,9 +62,9 @@ apps/web/
     │   ├── planService.ts (305 lines)
     │   └── sessionRunner.ts (669 lines)
     ├── i18n/
-    │   └── index.ts (761 lines)
+    │   └── index.ts (791 lines)
     ├── screens/
-    │   ├── AppearanceLab.tsx (244 lines)
+    │   ├── AppearanceLab.tsx (279 lines)
     │   ├── HomeScreen.tsx (429 lines)
     │   ├── MoreScreen.tsx (531 lines)
     │   ├── ProgressScreen.tsx (174 lines)
@@ -91,7 +91,16 @@ apps/web/
     │   └── useCloudSession.ts (286 lines)
     └── styles/
         ├── clay.css (73 lines)
-        └── tokens.css (93 lines)
+        ├── tokens.css (93 lines)
+        └── skins/
+            ├── aurora.css (85 lines)
+            ├── brutal.css (83 lines)
+            ├── glass.css (100 lines)
+            ├── mono.css (66 lines)
+            ├── neon.css (81 lines)
+            ├── neu.css (91 lines)
+            ├── oled.css (74 lines)
+            └── paper.css (89 lines)
 
 packages/
 ├── config/src/
@@ -151,7 +160,7 @@ packages/
 - **`TrainScreen`**: Segmented control switching between active 7-day plan blueprint with day inspector and searchable exercise library.
 - **`ProgressScreen`**: Mastery score ring, rep target mastery, RPE effort tracking, and movement exposure window.
 - **`MoreScreen`**: Grouped navigation for Settings, Appearance Lab, Equipment, Data, and System Diagnostics.
-- **`AppearanceLab`**: Live preview with controls for accent presets, clay depth, corner radius, density, and haptics.
+- **`AppearanceLab`**: Live preview with controls for the visual style variant (9 skins — clay/glass/neu/mono/neon/aurora/brutal/paper/oled — each a two-ring swatch tile), accent presets, clay depth, corner radius, density, and haptics.
 - **`CloudSyncCard`**: Honest cloud status card (More › About) — validates env config, probes the project's auth health endpoint once per mount, reports connected/unreachable/not-configured via i18n only.
 - **`CloudAccountCard`** (Phase 4D2/4D3): the account surface (More › About) — inline sign-in form, device verification/recovery states, one-time recovery-codes display, Sync now / Sign out, a two-step **Deauthorize this device** confirm with an honest failure line carrying the real server code, and honest sync-result/sync-failure lines; i18n-only copy, logical (RTL-safe) classes only.
 - **`supabase/authClient`** (Phase 4D2): Supabase Auth REST client without supabase-js — `signInWithPassword`, `refreshSession`, `getValidSession` (pre-emptive refresh within a 60 s TTL margin; 4xx refresh rejections clear the session while transient network/5xx failures deliberately keep it), `signOut` (best-effort global logout, never blocks local sign-out); `AuthSessionStore` port with `InMemory` + `KeyValue` implementations and defensive rehydration.
@@ -167,7 +176,17 @@ packages/
 
 ---
 
-## 3. Files Changed in this Task (Phase 4D3 — auto-sync, honest deauthorize, server housekeeping)
+## 3. Files Changed in this Task (Appearance Skins Lab — style picker + 4 new skins)
+- `apps/web/src/styles/skins/` (8 files): the four inherited skins (`glass`, `neu`, `mono`, `neon` — landed uncommitted by a prior session, now committed) plus four new skins `aurora`, `brutal`, `paper`, `oled`. Every skin overrides the same five recipe classes (`.clay`, `.clay-sm`, `.clay-pressed`, `.clay-accent`, `.clay-flat`) under `html[data-style=…]` — no component branches on the active style; each file carries its own performance budget (no backdrop-filter outside the glass budget, no animated box-shadow, blur-free hard shadows on brutal, zero-bloom hairlines on oled).
+- `apps/web/src/appearance.ts`: `StyleVariant` + `STYLE_VARIANTS` grew to 9 variants; the single neu ink-safe mix became `INK_SAFE_ACCENT_MIX` (per-skin targets: neu `#2a3050`, paper `#3d3229`, brutal `#26251c`) consumed by `accentValueForStyle`; new `STYLE_PRESETS` (label key + two-ring swatch colors per skin).
+- `apps/web/src/index.css`: imports all 8 skin stylesheets (activated by `data-style`, always shipped, zero JS cost).
+- `apps/web/src/screens/AppearanceLab.tsx` (the feature this task actually completes — the skins existed with no UI to reach them): new Control 1 “Visual style” — 9 two-ring swatch tiles (page bg + card surface per skin), same selected-state language as the other controls; control comments renumbered.
+- `apps/web/src/i18n/index.ts`: 10 new keys in both dicts (`appearance.style_label` + 9 skin names) plus an updated `more.item_appearance_desc`; arDict parity enforced by `Record<keyof typeof enDict, string>`.
+- `apps/web/src/__tests__/appearance.test.ts` (rewritten, 5 → 12 tests: defaults now assert `style`; every registered variant survives sanitize; bogus style falls back to clay; raw accent on dark skins vs ink-mixed on neu/paper/brutal; `STYLE_PRESETS` covers all variants with labels that resolve in enDict; shell/skins token-driven source guard; `applyAppearanceToDOM` now asserts `data-style` with an attribute-capturing fake root — the old test crashed on the inherited setAttribute plumbing; dark-skin switch keeps the raw accent).
+- `apps/web/src/styles/tokens.css` + `apps/web/src/App.tsx` + `apps/web/src/components/{LogoIntro,UpdateBanner}.tsx` (the bug the live browser rehearsal caught: the app shell hardcoded the clay palette `bg-[#0a0a10] text-[#f1f1f4]` ON TOP of the token-driven body, so every light skin floated cream cards on a black page): shell + splash now paint `bg-[var(--bg)] text-[var(--text)]` (byte-identical for clay), and a new `--accent-ink` token (default `#08080c`, `#ffffff` on neu/brutal/paper) drives ink placed on top of accent fills — `UpdateBanner`'s apply button uses it and the lab preview button stopped forcing `text-black` over the skin's ink. A source-guard test locks both in.
+- `docs/REPORT_APPEARANCE_SKINS.md`, `docs/STATE.md`.
+
+### Previous: Files Changed in this Task (Phase 4D3 — auto-sync, honest deauthorize, server housekeeping)
 - `apps/web/src/cloud/useCloudSession.ts` (auto-sync effect — one `sync()` per readiness transition, ref-guarded, re-armed after `signed_out`; `deauthorize` action — `revokeCurrentDevice` then local sign-out, with the honest failure posture: any revoke failure surfaces the real code and keeps the user verified; only `not_enrolled` falls through to the local break; `SIGNED_OUT_RESET` hoisted to module scope).
 - `apps/web/src/components/CloudAccountCard.tsx` (two-step deauthorize confirm — hint + confirm/cancel pair, disabled while busy; `account.deauthorize_failed` alert with the real code inside the ready section).
 - `apps/web/src/i18n/index.ts` (5 new keys in both dicts: `account.deauthorize`, `account.deauthorize_hint`, `account.deauthorize_confirm`, `account.cancel`, `account.deauthorize_failed`).
@@ -260,7 +279,7 @@ packages/
 
 ## 4. Test Counts per Package
 
-Total: **35 test files, 294 tests passing**.
+Total: **35 test files, 301 tests passing**.
 - `packages/engine-core`: 71 tests (engine-core: 59, engine-honesty-e1a: 9, engine-guard: 1, numeric-literals: 1, smoke: 1)
 - `packages/contracts`: 21 tests
 - `packages/config`: 16 tests
@@ -268,7 +287,7 @@ Total: **35 test files, 294 tests passing**.
 - `packages/library`: 9 tests (library: 7, smoke: 2)
 - `packages/sim`: 4 tests (simulation: 1, smoke: 3)
 - `packages/ports`: 1 test
-- `apps/web`: 165 tests (deviceAuthClient: 25, sessionRunnerHardening: 12, authClient: 14, deviceFlow: 9, deviceKeys: 10, historyService: 9, workoutRunnerScreen: 10, planService: 9, syncTransport: 7, syncService: 6, supabaseProbe: 5, cloudWiring: 5, cloudPhase4D3: 7, sessionRunner: 6, storage: 4, appearance: 5, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
+- `apps/web`: 172 tests (deviceAuthClient: 25, sessionRunnerHardening: 12, authClient: 14, deviceFlow: 9, deviceKeys: 10, historyService: 9, workoutRunnerScreen: 10, planService: 9, syncTransport: 7, syncService: 6, supabaseProbe: 5, cloudWiring: 5, cloudPhase4D3: 7, sessionRunner: 6, storage: 4, appearance: 12, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
 
 ---
 
@@ -282,9 +301,10 @@ Total: **35 test files, 294 tests passing**.
 - **Done (Phase 4D2)**: auth integration + sync orchestration — `authClient` (Auth REST + session store), `deviceFlow` (status/enroll/verify/recovery state machine), `syncService` (idempotent push+pull+merge), `useCloudSession` hook, `CloudAccountCard` UI (More › About) with full en/ar i18n (28 new keys), App wiring (`cloud.sync()` after workout completion). 34 new tests (total 284), all green; bundle 137.47/300 KB.
 - **Done (Phase 4D1)**: sync data layer — `session_events` migration (append-only, user + device-session RLS) and `syncTransport` (batched idempotent push, cursor pull) with 7 tests. Migration applied live by the owner and externally verified: anon `GET /rest/v1/session_events` answers `401 42501 permission denied` (table present, revoked-privilege posture).
 - **Done (E1b residuals)**: honest UI + persistent device id — plan/session events carry a persistent UUIDv7 device id (`hfos.device_id` in kv) instead of `redmi12_client`/`device-redmi12-local`; decision summaries derive unit from `PlanDay.unit`, reasons from the day's DecisionRecord term_values (top-3 real contributions as i18n keys + 0–100 chips) or `reason_code`, real `revision_reason` passthrough, defaulted-inputs honesty banner; fixed `SystemIdGenerator` malformed-UUID bug (10-char final group). 3 new tests (total 287), CI green.
+- **Done (Appearance Skins)**: the visual style system is complete and reachable — 9 skins (clay/glass/neu/mono/neon inherited + new aurora/brutal/paper/oled), a swatch style picker in the Appearance Lab (the skins previously shipped with no UI to switch them), per-skin ink-safe accent mixing on light skins, and the tokenized app shell + `--accent-ink` token that the live browser rehearsal proved necessary (the hardcoded clay shell had every light skin floating on black). 12 new tests (total 301; the inherited plumbing had left the old appearance tests failing locally), live-verified in a real browser: all 9 tiles switch `data-style`, the choice survives reload, light skins paint their own page background; bundle 139.84/300 KB.
 - **Done (Phase 4D3)**: auto-sync on start (one `sync()` per readiness transition, re-armed after sign-out), honest deauthorize action surfaced in the Account card (server revoke → local key clear → sign-out; a failed revoke keeps the user verified and shows the real code — only `not_enrolled` falls through), and the expired-challenge/session cleanup migration landed (owner-applied). 7 new tests (total 294), bundle 139.09/300 KB.
 - **Deployment note**: nothing to deploy server-side for 4C/4D2/4D3 beyond two owner actions — (1) apply `supabase/migrations/20261104000000_p4d3_cleanup_expired_device_auth.sql` in the SQL editor (optionally schedule it with the included pg_cron snippet), and (2) provide a test user for the live E2E rehearsal (`npm run e2e:live`, see `docs/REPORT_LIVE_E2E.md`): a dashboard-created user with Auto Confirm ✔ (option A, full 26 stations) or temporarily enabling anonymous sign-ins (option B, 23 stations). The project correctly ships with open signups and the anonymous provider disabled (re-confirmed live: `422 signup_disabled`, `422 anonymous_provider_disabled`).
-- **Push note**: commits `c03acb5` (e2e tooling) + the 4D3 commit are ready on local `main`, gated only on the owner's GitHub token (the fine-grained PAT was used in a previous session and is no longer in this environment); CI to be watched right after the push.
+- **Push note**: `c03acb5` (e2e tooling) + `c8d5e97` (Phase 4D3) were pushed to `origin/main` and CI finished green (run for `c8d5e97`, all steps success, ~38 s — the repo's normal duration).
 - **Possible next (4D4 candidates)**: auto-sync on `visibilitychange`/reconnect (currently: app-start readiness + workout completion + manual Sync now), surfacing server-side `active_devices`/last-seen in the Account card, and wiring the cleanup function into a real scheduled job once pg_cron availability is confirmed on the project.
 
 ---

@@ -1,0 +1,81 @@
+/**
+ * Neon Night Skin for Home Fitness OS
+ *
+ * Activated by <html data-style="neon"> (set by appearance.ts).
+ * Near-black surfaces with accent-tinted glow: borders and shadows pick
+ * up the user's accent via color-mix, so the whole UI follows the chosen
+ * preset. Glow strength honors the same --depth multiplier.
+ *
+ * Performance rules:
+ * - Static glow shadows only; never animate box-shadow (press states
+ *   keep the transform-only budget from .clay-interactive).
+ * - No backdrop-filter anywhere in this skin.
+ */
+
+:root[data-style='neon'] {
+  --bg: #05060b;
+  --clay-1: #0c0e1a;
+  --clay-2: #080911;
+  --surface: #0a0c16;
+  --surface-2: #080a12;
+  --surface-flat: #06070d;
+  --text: #eef2ff;
+  --muted: #7f87a8;
+  --danger: #ff2e63;
+  --ok: #2bd97c;
+}
+
+/* Deep-space ambient with faint accent-hued nebulas */
+html[data-style='neon'],
+html[data-style='neon'] body {
+  background-image:
+    radial-gradient(circle 440px at 0% 0%, rgb(58 44 122 / 0.38) 0%, transparent 100%),
+    radial-gradient(circle 400px at 100% 0%, rgb(10 84 110 / 0.36) 0%, transparent 100%);
+  background-repeat: no-repeat;
+}
+
+/* Hero card: dark panel + accent rim + restrained glow */
+html[data-style='neon'] .clay {
+  background: linear-gradient(145deg, var(--clay-1), var(--clay-2));
+  border-radius: var(--radius-clay);
+  border: 1px solid color-mix(in srgb, var(--accent) calc(30% * var(--depth)), rgb(255 255 255 / 0.07));
+  box-shadow:
+    0 0 26px color-mix(in srgb, var(--accent) calc(12% * var(--depth)), transparent),
+    inset 0 0 22px rgb(0 0 0 / calc(0.55 * var(--depth)));
+}
+
+/* Small tile: dimmer rim, whisper of glow */
+html[data-style='neon'] .clay-sm {
+  background: linear-gradient(145deg, var(--clay-1), var(--clay-2));
+  border-radius: var(--radius-clay-sm);
+  border: 1px solid color-mix(in srgb, var(--accent) calc(18% * var(--depth)), rgb(255 255 255 / 0.05));
+  box-shadow:
+    0 0 14px color-mix(in srgb, var(--accent) calc(7% * var(--depth)), transparent);
+}
+
+/* Pressed: glow collapses inward */
+html[data-style='neon'] .clay-pressed {
+  box-shadow:
+    inset 0 0 18px color-mix(in srgb, var(--accent) calc(14% * var(--depth)), transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) calc(24% * var(--depth)), transparent) !important;
+}
+
+/* Accent action: solid accent core + strong neon bloom */
+html[data-style='neon'] .clay-accent {
+  --c: var(--accent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--c) 85%, #ffffff), var(--c));
+  color: #05060b;
+  font-weight: 700;
+  border-radius: var(--radius-chip);
+  border: none;
+  box-shadow:
+    0 0 22px color-mix(in srgb, var(--c) calc(55% * var(--depth)), transparent),
+    0 0 44px color-mix(in srgb, var(--c) calc(22% * var(--depth)), transparent);
+}
+
+/* Flat surface for dense lists */
+html[data-style='neon'] .clay-flat {
+  background: var(--surface-flat);
+  border-radius: var(--radius-clay-sm);
+  border: 1px solid color-mix(in srgb, var(--accent) calc(12% * var(--depth)), rgb(255 255 255 / 0.05));
+}
