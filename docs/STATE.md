@@ -29,6 +29,7 @@ apps/web/
     │   ├── supabaseEnv.test.ts (54 lines)
     │   ├── supabaseProbe.test.ts (91 lines)
     │   ├── supabaseWiring.test.ts (43 lines)
+    │   ├── syncTransport.test.ts (173 lines)
     │   └── workoutRunnerScreen.test.ts (84 lines)
     ├── components/
     │   ├── Bar.tsx (54 lines)
@@ -68,7 +69,8 @@ apps/web/
     │   └── __tests__/storage.test.ts (153 lines)
     ├── supabase/
     │   ├── env.ts (61 lines)
-    │   └── probe.ts (56 lines)
+    │   ├── probe.ts (56 lines)
+    │   └── syncTransport.ts (280 lines)
     └── styles/
         ├── clay.css (73 lines)
         └── tokens.css (93 lines)
@@ -139,7 +141,13 @@ packages/
 
 ---
 
-## 3. Files Changed in this Task (Phase 4A — Supabase Foundation Wiring)
+## 3. Files Changed in this Task (Phase 4B/4D1 — Live Schema + Sync Data Layer)
+- `supabase/migrations/20261103000000_p4d1_session_events_sync.sql` (new, 45 lines: append-only `session_events` cloud mirror of the EventEnvelope log — `idempotency_key` PK, user FK, payload jsonb, occurred_at indexes; RLS authoritative with user scoping **and** `device_session_valid()` gate; select+insert only for authenticated — no update/delete policies).
+- `apps/web/src/supabase/syncTransport.ts` (new, 280 lines: `toSyncRow`/`envelopeFromSyncRow` mapping with defensive rehydration; `pushEvents` — batched POST with `resolution=ignore-duplicates,return=representation` for honest pushed/duplicates accounting; `pullEvents` — cursor pagination by `occurred_at`; injected fetch/clock/timeout, no supabase-js).
+- `apps/web/src/__tests__/syncTransport.test.ts` (new, 7 tests: mapping round-trip incl. `supersedes_event_id`, malformed-row tolerance, batch chunking 25→3 chunks, duplicate accounting 3/22, auth+Prefer headers, pull pagination via short page, HTTP failure paths).
+- `docs/REPORT_PHASE4D1.md`, `docs/STATE.md`.
+
+### Previous: Files Changed in this Task (Phase 4A — Supabase Foundation Wiring)
 - `.env.example` (placeholders for `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY`; real values live only in the gitignored `.env` — publishable key is public by design, never the secret/service_role).
 - `apps/web/src/supabase/env.ts` (new, 61 lines: `readSupabaseEnv` validates and origin-normalizes config from `import.meta.env`; degrades to typed `missing`/`invalid_url` results, never throws; plain http accepted on loopback only).
 - `apps/web/src/supabase/probe.ts` (new, 56 lines: `probeCloudConnection` against the project's `/auth/v1/health` with injected fetch/clock/timeout; honest `online`/`latency_ms`/`http_status`).
@@ -193,7 +201,7 @@ packages/
 
 ## 4. Test Counts per Package
 
-Total: **27 test files, 208 tests passing**.
+Total: **28 test files, 215 tests passing**.
 - `packages/engine-core`: 71 tests (engine-core: 59, engine-honesty-e1a: 9, engine-guard: 1, numeric-literals: 1, smoke: 1)
 - `packages/contracts`: 21 tests
 - `packages/config`: 16 tests
@@ -201,15 +209,18 @@ Total: **27 test files, 208 tests passing**.
 - `packages/library`: 9 tests (library: 7, smoke: 2)
 - `packages/sim`: 4 tests (simulation: 1, smoke: 3)
 - `packages/ports`: 1 test
-- `apps/web`: 79 tests (sessionRunnerHardening: 12, historyService: 9, workoutRunnerScreen: 10, supabaseProbe: 5, sessionRunner: 6, planService: 6, storage: 4, appearance: 5, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
+- `apps/web`: 86 tests (sessionRunnerHardening: 12, historyService: 9, workoutRunnerScreen: 10, syncTransport: 7, supabaseProbe: 5, sessionRunner: 6, planService: 6, storage: 4, appearance: 5, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
 
 ---
 
 ## 5. Known Issues and TODOs
 - **Done (Phase 3)**: Arabic dictionary is at 100% coverage (now 268/268 keys in both dicts) and a permanent RTL audit guard blocks physical direction classes/CSS.
 - **Done (History Wiring)**: the deferred item is complete — ProgressScreen and HomeScreen now derive mastery, consistency, and exposure from the append-only session event log via `historyService`; static mock metrics were removed.
-- **Done (Phase 4A)**: Supabase foundation wiring — env-driven config (`.env` gitignored; `.env.example` placeholders), `readSupabaseEnv` validation, `probeCloudConnection` auth-health probe, `CloudSyncCard` honest status (More › About). Live project `tbyqtmgxomznpemkkaee` verified reachable (auth health HTTP 200) — its database has **no M0-15 schema applied yet**.
-- **Phase 4B (Next)**: apply the M0-15 migration + RLS selftest to the live project (dashboard SQL editor or DB credentials), then 4C device auth, 4D event sync.
+- **Done (Phase 4A)**: Supabase foundation wiring — env-driven config (`.env` gitignored; `.env.example` placeholders), `readSupabaseEnv` validation, `probeCloudConnection` auth-health probe, `CloudSyncCard` honest status (More › About).
+- **Done (Phase 4B)**: M0-15 schema applied live by the owner via the SQL editor (`Success. No rows returned`); externally verified — `spike_data` anon access flipped from `404 PGRST205` (table missing) to `401 42501` (permission denied), exactly the revoked-privilege posture.
+- **Done (4C verification)**: the `device-auth` edge function survived the pause — it responds `401 {"error":"missing_token"}` (its own contract error, not "Function not found"). No redeploy needed.
+- **Done (Phase 4D1)**: sync data layer — `session_events` migration (append-only, user + device-session RLS) and `syncTransport` (batched idempotent push, cursor pull) with 7 tests. The new migration awaits the owner's SQL-editor run.
+- **Phase 4D2 (Next)**: auth integration in the app — sign-in UI + device enroll/verify flow against the live `device-auth` function, then sync orchestration (push local log, pull remote) wired into App lifecycle.
 
 ---
 
