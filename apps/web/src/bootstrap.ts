@@ -1,5 +1,6 @@
 import { MOCK_USER, type MockUserProfile } from '@hfos/sim';
 import { KeyValueStore, IndexedDbEventLog } from './storage/index.js';
+import { SystemIdGenerator } from './engine/engineContext.js';
 import {
   loadAppearance,
   applyAppearanceToDOM,
@@ -10,6 +11,9 @@ export const KV_KEY_PROFILE = 'mock_athlete_profile';
 export const KV_KEY_ENV = 'mock_athlete_environment';
 export const KV_KEY_HAS_LAUNCHED = 'hfos_has_launched';
 export const KV_KEY_LANGUAGE = 'hfos_language';
+export const KV_KEY_DEVICE_ID = 'hfos.device_id';
+
+const UUID_V7_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 export interface MockEnvironmentState {
   schema_version: number;
@@ -70,6 +74,22 @@ export async function bootstrapMockUser(): Promise<{
   }
 
   return { profile, env, isFirstEverLaunch, appearance };
+}
+
+/**
+ * Persistent app device id (E1b honesty item): a UUIDv7 generated once per
+ * installation and stored in the kv store. Every emitted event envelope
+ * carries this id as `device_id` instead of a hard-coded placeholder.
+ * A corrupt stored value is replaced transparently.
+ */
+export async function getPersistentDeviceId(kv: KeyValueStore): Promise<string> {
+  const existing = await kv.get<string>(KV_KEY_DEVICE_ID);
+  if (typeof existing === 'string' && UUID_V7_RE.test(existing)) {
+    return existing;
+  }
+  const id = new SystemIdGenerator().generateId();
+  await kv.set(KV_KEY_DEVICE_ID, id);
+  return id;
 }
 
 /**

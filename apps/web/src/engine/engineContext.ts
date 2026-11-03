@@ -26,13 +26,14 @@ export class SystemClock implements Clock {
 export class SystemIdGenerator implements IdGenerator {
   public generateId(): string {
     // Generate UUID v7 compliant format
+    // 18 random hex chars: 3 (version tail) + 3 (variant tail) + 12 (node)
     const now = Date.now();
     const timeHex = now.toString(16).padStart(12, '0');
-    const randomHex = Array.from({ length: 16 }, () =>
+    const randomHex = Array.from({ length: 18 }, () =>
       Math.floor(Math.random() * 16).toString(16)
     ).join('');
 
-    // Format: 8-4-7xxx-8xxx-12
+    // Format: 8-4-4-4-12 (time-low, time-mid, ver 7, variant 8, random node)
     return `${timeHex.slice(0, 8)}-${timeHex.slice(8, 12)}-7${randomHex.slice(0, 3)}-8${randomHex.slice(3, 6)}-${randomHex.slice(6, 18)}`;
   }
 }

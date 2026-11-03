@@ -9,7 +9,7 @@ import { Ring } from '../components/Ring.js';
 import { Bar } from '../components/Bar.js';
 import { SectionHeader } from '../components/SectionHeader.js';
 import { Icon } from '../components/IconSet.js';
-import type { DayDecisionSummary } from '../engine/planService.js';
+import type { DayDecisionSummary, DecisionReasonLine } from '../engine/planService.js';
 import { INITIAL_EXERCISE_LIBRARY } from '@hfos/library';
 
 interface HomeScreenProps {
@@ -59,6 +59,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const day0 = plan.days[0]!;
   const day0Snapshot = day0.session_snapshot;
   const day0Decision = decisions?.[0];
+
+  // Localized labels for decision inputs that had no data (E1b honesty note)
+  const DEFAULTED_INPUT_LABELS: Record<string, string> = {
+    history: t('defaulted.history'),
+    readiness: t('defaulted.readiness'),
+    progression: t('defaulted.progression'),
+  };
 
   // Exercises from day 0 snapshot
   const day0Exercises = (day0Snapshot?.exercises ?? []).map((exItem) => {
@@ -348,19 +355,47 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
 
             <div className="flex flex-col gap-2.5">
-              {(day0Decision?.top_reasons ?? [
-                'Priority muscle stimulus gap reached training threshold',
-                'Scheduled availability window fits full working set prescription',
-                'Compound movement progression criteria satisfied',
-              ]).map((reason, idx) => (
-                <div key={idx} className="clay-sm p-3 text-xs text-neutral-200 border border-white/5 flex items-start gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] mt-1.5 shrink-0" />
-                  <div className="flex-1">
-                    <span>{reason}</span>
-                    <span className="ms-1 text-[10px] text-[var(--muted)] uppercase">({t('common.estimate')})</span>
+              {((day0Decision?.top_reasons ?? []) as Array<DecisionReasonLine | string>).map((raw, idx) => {
+                if (typeof raw === 'string') {
+                  // Legacy summary persisted before the E1b honesty pass: shown
+                  // as-is and explicitly labeled as an estimate.
+                  return (
+                    <div key={idx} className="clay-sm p-3 text-xs text-neutral-200 border border-white/5 flex items-start gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] mt-1.5 shrink-0" />
+                      <div className="flex-1">
+                        <span>{raw}</span>
+                        <span className="ms-1 text-[10px] text-[var(--muted)] uppercase">({t('common.estimate')})</span>
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <div key={idx} className="clay-sm p-3 text-xs text-neutral-200 border border-white/5 flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] mt-1.5 shrink-0" />
+                    <div className="flex-1">
+                      <span>{t(raw.key)}</span>
+                      {typeof raw.value === 'number' && (
+                        <span className="ms-1 text-[10px] font-bold text-[var(--accent)] ltr-num">{raw.value}%</span>
+                      )}
+                    </div>
                   </div>
+                );
+              })}
+
+              {(day0Decision?.top_reasons?.length ?? 0) === 0 && (
+                <div className="clay-sm p-3 text-xs text-neutral-200 border border-white/5">
+                  {t('home.no_reasons')}
                 </div>
-              ))}
+              )}
+
+              {(day0Decision?.inputs_defaulted?.length ?? 0) > 0 && (
+                <div className="clay-sm p-3 bg-sky-950/40 border border-sky-800/60 text-sky-200 text-xs">
+                  {t('home.inputs_defaulted')}{' '}
+                  <span className="font-bold">
+                    {day0Decision!.inputs_defaulted!.map((n) => DEFAULTED_INPUT_LABELS[n] ?? n).join(' · ')}
+                  </span>
+                </div>
+              )}
 
               {day0Decision?.revision_reason && (
                 <div className="clay-sm p-3 bg-amber-950/40 border border-amber-800/60 text-amber-300 text-xs flex items-center gap-2">

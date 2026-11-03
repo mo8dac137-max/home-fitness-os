@@ -160,3 +160,114 @@ describe('PlanService & Engine Horizon Wiring (M1-B1)', () => {
   });
 });
 
+describe('E1b honesty: persistent device id + real decision summaries', () => {
+  beforeEach(async () => {
+    closeDatabase();
+    indexedDB.deleteDatabase(DB_NAME);
+  });
+
+  afterEach(() => {
+    closeDatabase();
+  });
+
+  const UUID_V7_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+  it('plan events carry a persistent UUIDv7 device id, never a hard-coded label', async () => {
+    const clock = new MockClock('2026-10-12T18:00:00Z');
+    const idGen = new MockIdGenerator();
+    const eventLog = new IndexedDbEventLog();
+    const kv = new KeyValueStore();
+    const service = new PlanService({ clock, idGenerator: idGen, eventLog, kvStore: kv });
+
+    await service.getOrCreatePlan(clock.now());
+
+    const [generated] = await eventLog.getByType('plan.generated');
+    if (!generated) throw new Error('plan.generated event missing');
+    expect(generated.device_id).toMatch(UUID_V7_RE);
+    expect(generated.device_id).not.toBe('redmi12_client');
+
+    // The same id is persisted in the kv store
+    await expect(kv.get<string>('hfos.device_id')).resolves.toBe(generated.device_id);
+
+    // A second service sharing the kv store reuses the SAME device id
+    const kv2 = new KeyValueStore();
+    await kv2.delete(KV_KEY_PLAN_CURRENT); // force regeneration
+    const service2 = new PlanService({ clock, idGenerator: idGen, eventLog, kvStore: kv2 });
+    await service2.getOrCreatePlan(clock.now());
+    const all = await eventLog.getByType('plan.generated');
+    expect(all.length).toBe(2);
+    expect(all[1]!.device_id).toBe(generated.device_id);
+  });
+
+  it('decision summaries use the engine unit and derive reasons from the DecisionRecord', async () => {
+    const clock = new MockClock('2026-10-12T18:00:00Z');
+    const idGen = new MockIdGenerator();
+    const service = new PlanService({ clock, idGenerator: idGen });
+    const { plan, decisions } = await service.getOrCreatePlan(clock.now());
+
+    const REASON_KEYS = new Set([
+      'reason.stimulus_gap', 'reason.priority_need', 'reason.progression_need',
+      'reason.goal_weight', 'reason.schedule_fit', 'reason.readiness',
+      'reason_day.scheduled_main', 'reason_day.no_window', 'reason_day.window_too_short',
+      'reason_day.quota_reached', 'reason_day.consecutive_cap', 'reason_day.recovery_spacing',
+      'reason_day.micro_window', 'reason_day.active_recovery_cap', 'reason_day.rest',
+    ]);
+
+    for (const day of plan.days) {
+      const summary = decisions[day.day_index]!;
+      // Unit comes from the engine (PlanDay.unit), not from day parity
+      expect(summary.unit).toBe(day.unit ?? 'rest');
+      // inputs_defaulted mirrors the plan-level honesty record
+      expect(summary.inputs_defaulted).toEqual(plan.inputs_defaulted ?? []);
+
+      if (day.kind === 'main' && day.decision?.selection) {
+        expect(summary.top_reasons.length).toBeGreaterThan(0);
+        for (const line of summary.top_reasons) {
+          expect(REASON_KEYS.has(line.key)).toBe(true);
+          if (line.value !== undefined) {
+            expect(Number.isInteger(line.value)).toBe(true);
+            expect(line.value).toBeGreaterThanOrEqual(0);
+            expect(line.value).toBeLessThanOrEqual(100);
+          }
+        }
+        // The rendered values are the day's REAL top-3 term contributions
+        const selection = day.decision.selection as { exercise_id?: string } | null;
+        const prefix = typeof selection?.exercise_id === 'string' ? selection.exercise_id : '';
+        const knownTerms = [
+          'stimulus_gap', 'priority_need', 'progression_need',
+          'schedule_fit', 'readiness', 'goal_weight',
+        ] as const;
+        const allValues = knownTerms
+          .map((term) => day.decision!.term_values[`${prefix}:${term}`])
+          .filter((v): v is number => typeof v === 'number');
+        const expectedTop3 = [...allValues].sort((a, b) => b - a).slice(0, 3).map((v) => Math.round(v * 100));
+        expect(summary.top_reasons.map((l) => l.value)).toEqual(expectedTop3);
+      } else {
+        // Non-main days explain themselves via reason_day.* keys
+        expect(summary.top_reasons.length).toBe(1);
+        expect(summary.top_reasons[0]!.key.startsWith('reason_day.')).toBe(true);
+      }
+    }
+  });
+
+  it('revision_reason passes through from the day record instead of a hard-coded value', async () => {
+    const clock = new MockClock('2026-10-12T18:00:00Z'); // Monday
+    const idGen = new MockIdGenerator();
+    const service = new PlanService({ clock, idGenerator: idGen });
+
+    await service.getOrCreatePlan(clock.now());
+    clock.advanceDays(1);
+    const { plan, decisions } = await service.getOrCreatePlan(clock.now());
+
+    for (const day of plan.days) {
+      const summary = decisions[day.day_index]!;
+      expect(summary.revision_reason ?? undefined).toBe(day.revision_reason ?? undefined);
+    }
+    // No summary may claim a revision that the day itself does not record
+    const claimed = Object.values(decisions).filter((s) => s.revision_reason !== undefined);
+    for (const s of claimed) {
+      expect(plan.days[s.day_index]!.revision_reason).toBe(s.revision_reason);
+    }
+  });
+});
+

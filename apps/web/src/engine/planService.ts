@@ -19,7 +19,7 @@ import {
   createDefaultScheduleProvider,
   createDefaultCapabilityMap,
 } from './engineContext.js';
-import { KV_KEY_PROFILE, KV_KEY_ENV, type MockEnvironmentState } from '../bootstrap.js';
+import { KV_KEY_PROFILE, KV_KEY_ENV, getPersistentDeviceId, type MockEnvironmentState } from '../bootstrap.js';
 import type { MockUserProfile } from '@hfos/sim';
 
 export const KV_KEY_PLAN_CURRENT = 'plan.current';
@@ -34,12 +34,44 @@ export interface PlanServiceOptions {
   kvStore?: KeyValueStore;
 }
 
+/**
+ * Closed set of i18n keys a decision reason line may carry. Every key exists
+ * in both i18n dictionaries; the optional `value` is the REAL normalized term
+ * contribution (0..100) taken from the day's DecisionRecord term_values.
+ */
+export type DecisionReasonI18nKey =
+  | 'reason.stimulus_gap'
+  | 'reason.priority_need'
+  | 'reason.progression_need'
+  | 'reason.goal_weight'
+  | 'reason.schedule_fit'
+  | 'reason.readiness'
+  | 'reason_day.scheduled_main'
+  | 'reason_day.no_window'
+  | 'reason_day.window_too_short'
+  | 'reason_day.quota_reached'
+  | 'reason_day.consecutive_cap'
+  | 'reason_day.recovery_spacing'
+  | 'reason_day.micro_window'
+  | 'reason_day.active_recovery_cap'
+  | 'reason_day.rest';
+
+export interface DecisionReasonLine {
+  key: DecisionReasonI18nKey;
+  /** Real normalized contribution (0..100) when derived from term_values. */
+  value?: number;
+}
+
 export interface DayDecisionSummary {
   day_index: number;
   date: string;
+  /** The unit the ENGINE chose for this day (A-D), or 'rest'. */
   unit: string;
-  top_reasons: string[]; // 3 human-readable explanation strings
-  revision_reason?: string; // Reason code if revised (schedule | readiness | prior_session | threshold)
+  /** Honest reasons: derived from the day's DecisionRecord or reason_code. */
+  top_reasons: DecisionReasonLine[];
+  revision_reason?: string; // Real code recorded by slideHorizon on the day itself
+  /** Which decision inputs had no data and fell back to named settings. */
+  inputs_defaulted: string[];
 }
 
 export interface PlanServiceResult {
@@ -127,25 +159,50 @@ export class PlanService {
   }
 
   /**
-   * Generates readable DecisionRecord explanation strings for a given day.
+   * Builds an HONEST decision summary for a day (E1b): the unit comes from
+   * PlanDay.unit (set by buildHorizon), reasons come from the day's
+   * DecisionRecord term_values (real normalized contributions) or from the
+   * day's reason_code, and the revision reason is the one slideHorizon
+   * actually recorded on the day. Nothing is derived from day parity and no
+   * sentence is canned here — rendering/localization happens via t() in the UI.
    */
-  public generateDecisionSummary(day: PlanDay): DayDecisionSummary {
-    const unit = day.session_snapshot ? (day.day_index % 2 === 0 ? 'A' : 'B') : 'Rest';
+  public generateDecisionSummary(day: PlanDay, plan?: Plan): DayDecisionSummary {
+    const unit: string = day.unit ?? 'rest';
+    const top_reasons: DecisionReasonLine[] = [];
 
-    // Top 3 deterministic reasons for the day's assignment
-    const top_reasons: string[] = [];
-    if (day.kind === 'main') {
-      top_reasons.push('Priority muscle stimulus gap reached training threshold');
-      top_reasons.push('Scheduled availability window fits full working set prescription');
-      top_reasons.push('Compound movement progression criteria satisfied');
-    } else if (day.kind === 'active_recovery') {
-      top_reasons.push('Consecutive training cap reached; active bloodflow recommended');
-      top_reasons.push('Mobility & tissue recovery prioritize joint readiness');
-      top_reasons.push('Low-intensity movement preserves systemic recovery');
-    } else {
-      top_reasons.push('Scheduled rest preserves neuromuscular readiness');
-      top_reasons.push('Recovery spacing prevents overlapping fatigue patterns');
-      top_reasons.push('Adaptive day optimized for upcoming main volume');
+    if (day.kind === 'main' && day.decision && day.decision.selection) {
+      const selection = day.decision.selection as { exercise_id?: unknown } | null;
+      const prefix = typeof selection?.exercise_id === 'string' ? selection.exercise_id : '';
+      const terms: Record<string, number> = day.decision.term_values ?? {};
+      const knownTerms = [
+        'stimulus_gap',
+        'priority_need',
+        'progression_need',
+        'schedule_fit',
+        'readiness',
+        'goal_weight',
+      ] as const;
+
+      const scored = knownTerms
+        .map((term) => ({ key: `reason.${term}` as DecisionReasonI18nKey, value: terms[`${prefix}:${term}`] }))
+        .filter((x): x is { key: DecisionReasonI18nKey; value: number } => typeof x.value === 'number')
+        .sort((a, b) => b.value - a.value);
+
+      for (const s of scored.slice(0, 3)) {
+        top_reasons.push({ key: s.key, value: Math.round(s.value * 100) });
+      }
+    }
+
+    if (top_reasons.length === 0) {
+      const code: DecisionReasonI18nKey =
+        day.kind === 'main'
+          ? 'reason_day.scheduled_main'
+          : day.kind === 'active_recovery'
+            ? 'reason_day.active_recovery_cap'
+            : day.reason_code === undefined
+              ? 'reason_day.rest'
+              : `reason_day.${day.reason_code}`;
+      top_reasons.push({ key: code });
     }
 
     return {
@@ -153,6 +210,8 @@ export class PlanService {
       date: day.date ?? '',
       unit,
       top_reasons,
+      revision_reason: day.revision_reason,
+      inputs_defaulted: plan?.inputs_defaulted ?? [],
     };
   }
 
@@ -193,11 +252,7 @@ export class PlanService {
     if (!decisions || isNewPlan || isRevised) {
       decisions = {};
       for (const d of plan.days) {
-        const summary = this.generateDecisionSummary(d);
-        if (isRevised && d.day_index >= 2) {
-          summary.revision_reason = 'schedule';
-        }
-        decisions[d.day_index] = summary;
+        decisions[d.day_index] = this.generateDecisionSummary(d, plan);
       }
     }
 
@@ -208,13 +263,14 @@ export class PlanService {
     await this.kvStore.set(KV_KEY_DECISIONS, decisions);
     await this.kvStore.set(KV_KEY_PLAN_GEN_TIME, durationMs);
 
-    // Emit event
+    // Emit event (device_id is the persistent installation id, never a hard-coded label)
+    const deviceId = await getPersistentDeviceId(this.kvStore);
     if (isNewPlan) {
       await this.eventLog.append({
         event_id: this.idGenerator.generateId(),
         type: 'plan.generated',
         occurred_at: nowIso,
-        device_id: 'redmi12_client',
+        device_id: deviceId,
         idempotency_key: `plan-gen-${plan.id}`,
         schema_version: 1,
         payload: {
@@ -229,7 +285,7 @@ export class PlanService {
         event_id: this.idGenerator.generateId(),
         type: 'plan.revised',
         occurred_at: nowIso,
-        device_id: 'redmi12_client',
+        device_id: deviceId,
         idempotency_key: `plan-rev-${plan.id}-${todayStr}`,
         schema_version: 1,
         payload: {

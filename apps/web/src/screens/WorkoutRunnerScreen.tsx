@@ -15,6 +15,7 @@ import {
   KV_KEY_APPEARANCE,
 } from '../appearance.js';
 import { SystemClock, SystemIdGenerator } from '../engine/engineContext.js';
+import { getPersistentDeviceId } from '../bootstrap.js';
 import {
   type SessionRunnerState,
   createInitialRunnerState,
@@ -246,14 +247,32 @@ export const WorkoutRunnerScreen: React.FC<WorkoutRunnerScreenProps> = ({
     };
   }, [planDay, idGen, clock]);
 
+  // Persistent installation device id (E1b): resolved once per mount; all
+  // emitted session events carry it instead of a hard-coded label.
+  const [deviceId, setDeviceId] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const id = await getPersistentDeviceId(kvStore);
+        if (isMounted) setDeviceId(id);
+      } catch {
+        // degraded storage: leave undefined, events fall back to the runner default
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [kvStore]);
+
   const deps: SessionRunnerDeps = useMemo(
     () => ({
       clock,
       idGenerator: idGen,
       library: INITIAL_EXERCISE_LIBRARY,
-      deviceId: 'device-redmi12-local',
+      deviceId,
     }),
-    [clock, idGen]
+    [clock, idGen, deviceId]
   );
 
   const [runnerState, setRunnerState] = useState<SessionRunnerState>(() =>
