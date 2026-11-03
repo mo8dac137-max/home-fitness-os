@@ -167,7 +167,14 @@ packages/
 
 ---
 
-## 3. Files Changed in this Task (E1b Residuals — honest UI + persistent device id)
+## 3. Files Changed in this Task (Live E2E rehearsal tooling)
+- `scripts/e2e_device_auth.mjs` (new, 403 lines: zero-dependency Node 18+ operator script — real-wire rehearsal of device auth + `session_events` RLS; 23 stations, 26 with an email+password test user; signs the server nonce as raw UTF-8 ECDSA P-256/SHA-256 → unpadded base64url; never prints tokens/nonces/recovery codes; fresh disposable user per run; exit 0/1/2; manual only, never part of `npm test`/CI).
+- `package.json` (new script: `e2e:live` → `node scripts/e2e_device_auth.mjs`).
+- `eslint.config.js` (scripts-block globals extended with the Node 18+ built-ins the rehearsal uses — `URL`, `URLSearchParams`, `TextEncoder`, `TextDecoder`, `atob`, `btoa`, `fetch`, `AbortSignal`, `crypto` — `no-undef` is disabled for TS files but applies to `.mjs`).
+- `docs/REPORT_LIVE_E2E.md` (new: station ledger, live evidence banked so far, the single remaining gate — test-user acquisition — and honest non-goals).
+- `docs/STATE.md`.
+
+### Previous: Files Changed in this Task (E1b Residuals — honest UI + persistent device id)
 - `apps/web/src/bootstrap.ts` (new helper: `getPersistentDeviceId` — one UUIDv7 per installation in kv `hfos.device_id`, corrupt values regenerated).
 - `apps/web/src/engine/planService.ts` (plan events carry the persistent device id; `DayDecisionSummary` honest: unit from `PlanDay.unit`, reasons = typed i18n keys + REAL top-3 term contributions from the day's DecisionRecord, `revision_reason` passthrough, `inputs_defaulted` surfaced).
 - `apps/web/src/screens/WorkoutRunnerScreen.tsx` (session events carry the persistent device id; hard-coded `device-redmi12-local` removed).
@@ -267,7 +274,7 @@ Total: **34 test files, 287 tests passing**.
 - **Done (Phase 4D2)**: auth integration + sync orchestration — `authClient` (Auth REST + session store), `deviceFlow` (status/enroll/verify/recovery state machine), `syncService` (idempotent push+pull+merge), `useCloudSession` hook, `CloudAccountCard` UI (More › About) with full en/ar i18n (28 new keys), App wiring (`cloud.sync()` after workout completion). 34 new tests (total 284), all green; bundle 137.47/300 KB.
 - **Done (Phase 4D1)**: sync data layer — `session_events` migration (append-only, user + device-session RLS) and `syncTransport` (batched idempotent push, cursor pull) with 7 tests. Migration applied live by the owner and externally verified: anon `GET /rest/v1/session_events` answers `401 42501 permission denied` (table present, revoked-privilege posture).
 - **Done (E1b residuals)**: honest UI + persistent device id — plan/session events carry a persistent UUIDv7 device id (`hfos.device_id` in kv) instead of `redmi12_client`/`device-redmi12-local`; decision summaries derive unit from `PlanDay.unit`, reasons from the day's DecisionRecord term_values (top-3 real contributions as i18n keys + 0–100 chips) or `reason_code`, real `revision_reason` passthrough, defaulted-inputs honesty banner; fixed `SystemIdGenerator` malformed-UUID bug (10-char final group). 3 new tests (total 287), CI green.
-- **Deployment note**: nothing to deploy server-side for 4C/4D2 — the `device-auth` function, the M0-15 schema, and the `session_events` table are all live and verified. The remaining manual step is the live end-to-end rehearsal: sign in → enroll (save the 8 codes) → verify → `GET /rest/v1/session_events` with the verified token must return `[]` (not 401). A ready-made rehearsal script exists at `scripts/e2e_device_auth.mjs` (see the E2E report once landed).
+- **Deployment note**: nothing to deploy server-side for 4C/4D2 — the `device-auth` function, the M0-15 schema, and the `session_events` table are all live and verified. The live end-to-end rehearsal is fully scripted and landed in the repo (`npm run e2e:live`, see `docs/REPORT_LIVE_E2E.md`); it is gated on exactly one owner action — a dashboard-created test user (option A, full 26 stations) or temporarily enabling anonymous sign-ins (option B, 23 stations) — because the project correctly ships with open signups and the anonymous provider disabled (re-confirmed live: `422 signup_disabled`, `422 anonymous_provider_disabled`).
 - **Possible next (4D3 candidates)**: auto-sync on app start when ready (currently: after workout completion + manual Sync now), a deauthorize-device action (server `revoke` is implemented client-side but not surfaced), and cleaning up expired challenges/sessions via a scheduled SQL job.
 
 ---

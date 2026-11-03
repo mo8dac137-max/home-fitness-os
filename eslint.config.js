@@ -63,6 +63,16 @@ export default tseslint.config(
       globals: {
         console: 'readonly',
         process: 'readonly',
+        // Node 18+ built-in globals used by the live e2e rehearsal script.
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+        TextEncoder: 'readonly',
+        TextDecoder: 'readonly',
+        atob: 'readonly',
+        btoa: 'readonly',
+        fetch: 'readonly',
+        AbortSignal: 'readonly',
+        crypto: 'readonly',
       },
     },
   }
