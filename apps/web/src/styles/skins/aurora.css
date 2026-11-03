@@ -24,6 +24,10 @@
   --muted: #8fa3c4;
   --danger: #ff5d7a;
   --ok: #35e08e;
+
+  /* Motion personality (4D7): slow drift — the longest, gentlest glide;
+     curtains of light never snap (JS adds the 1.2x scale, the floatiest). */
+  --motion-timing: cubic-bezier(0.45, 0.05, 0.15, 1);
 }
 
 /* Aurora curtains: teal, indigo and emerald ribbons over midnight */

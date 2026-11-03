@@ -2,7 +2,7 @@
 
 > Source of truth for repo structure, package exports, test coverage, and active settings keys.
 >
-> Test totals in §4 include the Phase 4D6 task: 38 files / 351 tests.
+> Test totals in §4 include the Phase 4D7 task: 39 files / 361 tests.
 
 ---
 
@@ -14,9 +14,9 @@ apps/web/
 ├── tsconfig.json (8 lines)
 └── src/
     ├── App.tsx (245 lines)
-    ├── appearance.ts (277 lines)
+    ├── appearance.ts (311 lines)
     ├── bootstrap.ts (108 lines)
-    ├── index.css (159 lines)
+    ├── index.css (161 lines)
     ├── main.tsx (14 lines)
     ├── __tests__/
     │   ├── appearance.test.ts (254 lines)
@@ -34,6 +34,7 @@ apps/web/
     │   ├── historyService.test.ts (249 lines)
     │   ├── historyWiring.test.ts (48 lines)
     │   ├── i18nArabicCoverage.test.ts (65 lines)
+    │   ├── motion4D7.test.ts (198 lines)
     │   ├── planService.test.ts (273 lines)
     │   ├── rtl.test.ts (129 lines)
     │   ├── sessionRunner.test.ts (330 lines)
@@ -96,16 +97,16 @@ apps/web/
     │   └── useCloudSession.ts (480 lines)
     └── styles/
         ├── clay.css (73 lines)
-        ├── tokens.css (93 lines)
+        ├── tokens.css (104 lines)
         └── skins/
-            ├── aurora.css (85 lines)
-            ├── brutal.css (83 lines)
-            ├── glass.css (100 lines)
-            ├── mono.css (66 lines)
-            ├── neon.css (81 lines)
-            ├── neu.css (91 lines)
-            ├── oled.css (74 lines)
-            └── paper.css (89 lines)
+            ├── aurora.css (89 lines)
+            ├── brutal.css (110 lines)
+            ├── glass.css (123 lines)
+            ├── mono.css (70 lines)
+            ├── neon.css (86 lines)
+            ├── neu.css (98 lines)
+            ├── oled.css (79 lines)
+            └── paper.css (96 lines)
 
 packages/
 ├── config/src/
@@ -182,7 +183,15 @@ packages/
 
 ---
 
-## 3. Files Changed in this Task (Phase 4D6 — per-device revoke + added-when + CORS allow-list)
+## 3. Files Changed in this Task (Phase 4D7 — per-skin motion personality)
+- `apps/web/src/appearance.ts` (+34 lines: `MotionPersonality` + `MOTION_PERSONALITIES` — one `durationScale` knob per skin (brutal 0.7 … aurora 1.2, clay baseline 1); `applyAppearanceToDOM` now scales **six** motion tokens (three new: enter/draw/stagger) by the active skin's scale and zeroes all six unscaled on `motion: 'reduced'`).
+- `apps/web/src/styles/tokens.css` (+11 lines: three new motion tokens `--motion-duration-enter: 220ms`, `--motion-duration-draw: 900ms`, `--motion-stagger: 50ms`; all six zeroed in the `prefers-reduced-motion` block; the clay baseline personality documented in place).
+- `apps/web/src/index.css` (+2 lines net: the three animation classes consume the new tokens — hardcoded 220/900/50ms survive only as `var(…, fallback)` safety nets — so the reduced setting and the skin scale genuinely reach screen/card/ring animations).
+- `apps/web/src/styles/skins/*.css` (all 8): each non-clay skin owns its `--motion-timing` curve inside the existing `:root[data-style=…]` block (glass 1.15x frosted glide, mono/oled 0.85x crisp/sharp, neon 0.8x electric snap with a tiny overshoot, aurora 1.2x drift, brutal 0.7x stamp, neu/paper 1x character curves); glass adds `@keyframes glassEnter` (fade + `scale(0.985→1)` breath) and brutal adds `@keyframes brutalStamp` (no fade, lands from 6px above) wired via `animation-name` overrides on the two enter classes — no component branches on the style, invariant held.
+- `apps/web/src/__tests__/motion4D7.test.ts` (new, 10 tests).
+- `docs/REPORT_PHASE4D7.md`, `docs/STATE.md`.
+
+### Previous: Files Changed in this Task (Phase 4D6 — per-device revoke + added-when + CORS allow-list)
 - `supabase/functions/device-auth/index.ts` (262 lines, contract hardening): `revoke` pre-checks that the target id is a live device of this user and answers `404 unknown_or_revoked_device` for unknown/already-revoked ids instead of a fake `ok` over a zero-row update (self-revoke unaffected); CORS is now built per request from the optional `DEVICE_AUTH_ALLOWED_ORIGINS` env allow-list (matching origin reflected with `Vary: Origin`, no header for others, the spike's `*` stays when unset) — M0-15b.
 - `apps/web/src/supabase/deviceAuthClient.ts` (+28 lines: `revokeDeviceById` — revokes any of the user's devices by id, never touches the local key store; empty id short-circuits with the new `bad_device_id` code; documented both-ways deployment tolerance).
 - `apps/web/src/cloud/useCloudSession.ts` (+37 lines: `revokeDevice(deviceId)` action — valid session → revoke → `refreshDeviceInfo()` re-paint, failures land in a dedicated `revokeError` state; `revokeError` added to `INITIAL`/`SIGNED_OUT_RESET`/sign-out/epoch resets and cleared alongside `deviceError` on every new round).
@@ -315,7 +324,7 @@ packages/
 
 ## 4. Test Counts per Package
 
-Total: **38 test files, 351 tests passing**.
+Total: **39 test files, 361 tests passing**.
 - `packages/engine-core`: 71 tests (engine-core: 59, engine-honesty-e1a: 9, engine-guard: 1, numeric-literals: 1, smoke: 1)
 - `packages/contracts`: 21 tests
 - `packages/config`: 16 tests
@@ -342,9 +351,10 @@ Total: **38 test files, 351 tests passing**.
 - **Done (Phase 4D4)**: opportunistic auto-sync + honest device facts — a pure trigger policy (`syncTriggers`, 30 s rate limit, readiness/busy gates) drives `visibilitychange`/`online` rounds through the existing `sync()` path; the 4D3 cold-start round feeds the same limiter; the Account card's ready section now shows the server's `active_devices` count, this browser's short device id, and a `Last sync HH:mm` stamp from `lastSyncAt` (stamped on every completed round, honest failures included); 3 new i18n keys in both dicts. 16 new tests (total 317), bundle 140.51/300 KB.
 - **Done (Phase 4D5)**: auto theme mode + per-device rows — `theme_mode: manual/system` with a skin per scheme (`style_light` default paper, `style_dark` default clay), legacy settings migrate honestly, pre-paint + live `matchMedia` re-apply keep the scheme-matching skin, and the lab picker edits the skin the device is currently showing; the account card lists the server's non-revoked devices with label, `Last seen`, and a `This device` chip (edge function v2 stamps `last_seen_at` on verify and degrades to the v1 payload before the migration lands). 21 new tests (total 338), bundle 141.43/300 KB. Owner actions: **DONE** — the migration was applied live via the SQL editor (`Success. No rows returned`) and the function was redeployed from the dashboard; externally verified post-redeploy: a no-token POST answers `401 {"error":"missing_token"}` and OPTIONS answers `200 ok`, so contract v2 is live. Honest stamping semantics: `last_seen_at` is written only on verify rounds (enroll / re-verify / recovery), so a device inside its 12 h verified session shows "not seen yet" until its next verify round.
 - **Done (Phase 4D6)**: per-device revoke + added-when + CORS allow-list — the Account card's device rows now carry a Revoke affordance (current device routes to the existing 4D3 deauthorize flow; other devices get a two-step inline confirm through the new `revokeDevice` hook action → `revokeDeviceById`, which never touches the local key store); rows lead with `Added {date}` next to the last-seen fact; the server's `revoke` answers `404 unknown_or_revoked_device` for unknown/already-revoked ids instead of a fake `ok`; CORS builds per request from the optional `DEVICE_AUTH_ALLOWED_ORIGINS` env allow-list (the spike's `*` stays when unset — M0-15b); 5 new i18n keys in both dicts. 13 new tests (total 351), bundle 141.96/300 KB.
-- **Deployment note**: nothing to deploy server-side for 4C/4D2/4D3 beyond two owner actions — (1) apply `supabase/migrations/20261104000000_p4d3_cleanup_expired_device_auth.sql` in the SQL editor (optionally schedule it with the included pg_cron snippet), and (2) provide a test user for the live E2E rehearsal (`npm run e2e:live`, see `docs/REPORT_LIVE_E2E.md`): a dashboard-created user with Auto Confirm ✔ (option A, full 26 stations) or temporarily enabling anonymous sign-ins (option B, 23 stations). The project correctly ships with open signups and the anonymous provider disabled (re-confirmed live: `422 signup_disabled`, `422 anonymous_provider_disabled`). 4D6 adds a third owner action: redeploy `device-auth` again (the honest-404 revoke + CORS allow-list source) — safe either way, the client tolerates the old bare-ok answers; optional hardening: set `DEVICE_AUTH_ALLOWED_ORIGINS` to the production origin in the function's secrets.
+- **Done (Phase 4D7)**: per-skin motion personality — JS owns a per-skin `durationScale` (brutal 0.7 stamps … aurora 1.2 drifts, clay baseline 1 byte-identical) applied to all six motion tokens (three new: enter/draw/stagger), CSS owns the character (per-skin `--motion-timing` curves; signature `glassEnter` breath and `brutalStamp` no-fade enter via `animation-name` overrides), and a pre-existing honesty gap closed: the hardcoded 220/900/50ms animation durations now consume tokens, so the in-app `motion: 'reduced'` setting truly stops everything. No component branches on the style; no new UI or i18n; pure client phase — no owner action. 10 new tests (total 361), bundle 142.10/300 KB.
+- **Deployment note**: nothing to deploy server-side for 4C/4D2/4D3 beyond two owner actions — (1) apply `supabase/migrations/20261104000000_p4d3_cleanup_expired_device_auth.sql` in the SQL editor (optionally schedule it with the included pg_cron snippet), and (2) provide a test user for the live E2E rehearsal (`npm run e2e:live`, see `docs/REPORT_LIVE_E2E.md`): a dashboard-created user with Auto Confirm ✔ (option A, full 26 stations) or temporarily enabling anonymous sign-ins (option B, 23 stations). The project correctly ships with open signups and the anonymous provider disabled (re-confirmed live: `422 signup_disabled`, `422 anonymous_provider_disabled`). 4D6 adds a third owner action: redeploy `device-auth` again (the honest-404 revoke + CORS allow-list source) — safe either way, the client tolerates the old bare-ok answers; optional hardening: set `DEVICE_AUTH_ALLOWED_ORIGINS` to the production origin in the function's secrets. 4D7 adds nothing server-side (pure client: CSS + one JS map).
 - **Push note**: `c03acb5` (e2e tooling) + `c8d5e97` (Phase 4D3) were pushed to `origin/main` and CI finished green (run for `c8d5e97`, all steps success, ~38 s — the repo's normal duration).
-- **Possible next (4D7 candidates)**: a per-skin motion personality (currently every skin shares the global motion tokens); a revoke-confirmation second factor (product decision — the verified device session already gates the action); cursor-based pull only if the event log ever grows (currently a deliberate full pull); surfacing per-device revoked history (needs a query surface for revoked rows, currently only non-revoked devices render).
+- **Possible next (4D8 candidates)**: a revoke-confirmation second factor (product decision — the verified device session already gates the action); surfacing per-device revoked history (needs a query surface for revoked rows, currently only non-revoked devices render); a per-skin motion hint in the lab's style picker (the personality is currently implicit — documented in code/tests only); cursor-based pull only if the event log ever grows (currently a deliberate full pull); pg_cron scheduling of the expired-session cleanup (still blocked on the owner confirming pg_cron availability).
 
 ---
 

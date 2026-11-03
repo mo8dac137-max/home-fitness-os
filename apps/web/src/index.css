@@ -91,7 +91,9 @@ body {
   transform: scaleX(-1);
 }
 
-/* Screen Enter Animation (logical directional aware) */
+/* Screen Enter Animation (logical directional aware).
+ * 4D7: durations come from tokens so the user's motion:'reduced' setting
+ * and the active skin's personality reach every animation (no hardcoded ms). */
 @keyframes screenEnter {
   from {
     opacity: 0;
@@ -104,10 +106,10 @@ body {
 }
 
 .animate-screen-enter {
-  animation: screenEnter 220ms var(--motion-timing) forwards;
+  animation: screenEnter var(--motion-duration-enter, 220ms) var(--motion-timing) forwards;
 }
 
-/* Card Stagger Animation (Max 8 items, --i x 50ms) */
+/* Card Stagger Animation (Max 8 items, --i x stagger step) */
 @keyframes cardStagger {
   from {
     opacity: 0;
@@ -121,8 +123,8 @@ body {
 
 .animate-card-stagger {
   opacity: 0;
-  animation: cardStagger 220ms var(--motion-timing) forwards;
-  animation-delay: calc(var(--i, 0) * 50ms);
+  animation: cardStagger var(--motion-duration-enter, 220ms) var(--motion-timing) forwards;
+  animation-delay: calc(var(--i, 0) * var(--motion-stagger, 50ms));
 }
 
 /* Logo Ring Dash Animation */
@@ -138,7 +140,7 @@ body {
 .animate-draw-ring {
   stroke-dasharray: 283;
   stroke-dashoffset: 283;
-  animation: drawRing 900ms var(--motion-timing) forwards;
+  animation: drawRing var(--motion-duration-draw, 900ms) var(--motion-timing) forwards;
 }
 
 /* Motion Reduction Invariant */

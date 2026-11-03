@@ -33,6 +33,10 @@
 
   /* Remap Tailwind's white utilities to dark ink for the light surface */
   --color-white: #2f3550;
+
+  /* Motion personality (4D7): cushioned rubber — a soft easeOutQuad settle
+     that matches the pressed-plastic feel (JS adds the 1x baseline scale). */
+  --motion-timing: cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 /* Calm light ambient: replace the dark blobs with subtle cool tints */

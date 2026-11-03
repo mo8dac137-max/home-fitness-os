@@ -17,6 +17,10 @@
   --muted: #8b929e;
   --danger: #ff5d5d;
   --ok: #4cd964;
+
+  /* Motion personality (4D7): Swiss crisp — a pure decelerate with zero
+     bounce, geometry never wobbles (JS adds the 0.85x scale). */
+  --motion-timing: cubic-bezier(0.2, 0, 0, 1);
 }
 
 /* Flat ambient: solid background, no gradient blobs */

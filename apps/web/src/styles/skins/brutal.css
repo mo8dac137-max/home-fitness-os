@@ -37,6 +37,11 @@
 
   /* Remap Tailwind's white utilities to dark ink for the light surface */
   --color-white: #16150f;
+
+  /* Motion personality (4D7): brutalism lands like a stamp — an extremely
+     aggressive attack curve with no float (JS adds the 0.7x duration
+     scale, the snappiest of all skins). */
+  --motion-timing: cubic-bezier(0.13, 0.99, 0.09, 1);
 }
 
 /* Flat cream ambient: no gradient blobs, brutalism is honest about it */
@@ -83,4 +88,23 @@ html[data-style='brutal'] .clay-flat {
   border-radius: calc(var(--r-lg) * 0.22);
   border: 2px solid var(--text);
   box-shadow: none;
+}
+
+/* Motion personality (4D7): signature enter — a hard stamp. No fade (the
+   element is always fully opaque, honest like the rest of the skin), it
+   just lands from slightly above and stays put. */
+@keyframes brutalStamp {
+  from {
+    opacity: 1;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+html[data-style='brutal'] .animate-screen-enter,
+html[data-style='brutal'] .animate-card-stagger {
+  animation-name: brutalStamp;
 }

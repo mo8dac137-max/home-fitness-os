@@ -35,6 +35,10 @@
 
   /* Remap Tailwind's white utilities to dark ink for the light surface */
   --color-white: #2c2a24;
+
+  /* Motion personality (4D7): steady press — an even, mechanical ease like
+     a print pass; no overshoot, no float (JS adds the 1x baseline scale). */
+  --motion-timing: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Calm paper ambient: replace the dark blobs with faint warm tints */

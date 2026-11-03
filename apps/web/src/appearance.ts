@@ -98,6 +98,32 @@ export const STYLE_PRESETS: Record<StyleVariant, { labelKey: string; bg: string;
   oled: { labelKey: 'appearance.style_oled', bg: '#000000', surface: '#0b0b0d' },
 };
 
+/**
+ * Phase 4D7: per-skin motion personality. CSS owns the character (per-skin
+ * timing curves and signature enter keyframes via html[data-style=...]
+ * selectors in styles/skins/*.css); this map owns the duration scale that
+ * applyAppearanceToDOM multiplies into the six base motion tokens.
+ * 1 = clay baseline; <1 snappier (brutal stamps), >1 floatier (aurora
+ * drifts, glass floats). The user's motion:'reduced' setting always wins:
+ * it zeroes every token unscaled.
+ */
+export interface MotionPersonality {
+  /** Multiplier for the base motion durations (0.7 snappy … 1.2 floaty). */
+  durationScale: number;
+}
+
+export const MOTION_PERSONALITIES: Record<StyleVariant, MotionPersonality> = {
+  clay: { durationScale: 1 }, // soft settle — the baseline personality
+  glass: { durationScale: 1.15 }, // panes float, unhurried
+  neu: { durationScale: 1 }, // cushioned rubber, standard pace
+  mono: { durationScale: 0.85 }, // crisp, immediate
+  neon: { durationScale: 0.8 }, // electric snap
+  aurora: { durationScale: 1.2 }, // drifting glow, the longest glide
+  brutal: { durationScale: 0.7 }, // stamps, no ceremony
+  paper: { durationScale: 1 }, // steady print press
+  oled: { durationScale: 0.85 }, // black-glass sharpness
+};
+
 export const DEFAULT_APPEARANCE: AppearanceSettings = {
   style: 'clay',
   theme_mode: 'manual',
@@ -243,15 +269,23 @@ export function applyAppearanceToDOM(settings: AppearanceSettings): void {
   const densityMultiplier = settings.density === 'compact' ? '0.85' : '1';
   root.style.setProperty('--density', densityMultiplier);
 
-  // 5. Motion override
+  // 5. Motion override — the active skin's personality (4D7) scales the
+  // base durations; 'reduced' zeroes all six unscaled, whatever the skin.
+  const motionScale = MOTION_PERSONALITIES[settings.style]?.durationScale ?? 1;
   if (settings.motion === 'reduced') {
     root.style.setProperty('--motion-duration-fast', '0ms');
     root.style.setProperty('--motion-duration', '0ms');
     root.style.setProperty('--motion-duration-slow', '0ms');
+    root.style.setProperty('--motion-duration-enter', '0ms');
+    root.style.setProperty('--motion-duration-draw', '0ms');
+    root.style.setProperty('--motion-stagger', '0ms');
   } else {
-    root.style.setProperty('--motion-duration-fast', '90ms');
-    root.style.setProperty('--motion-duration', '200ms');
-    root.style.setProperty('--motion-duration-slow', '600ms');
+    root.style.setProperty('--motion-duration-fast', `${Math.round(90 * motionScale)}ms`);
+    root.style.setProperty('--motion-duration', `${Math.round(200 * motionScale)}ms`);
+    root.style.setProperty('--motion-duration-slow', `${Math.round(600 * motionScale)}ms`);
+    root.style.setProperty('--motion-duration-enter', `${Math.round(220 * motionScale)}ms`);
+    root.style.setProperty('--motion-duration-draw', `${Math.round(900 * motionScale)}ms`);
+    root.style.setProperty('--motion-stagger', `${Math.round(50 * motionScale)}ms`);
   }
 }
 

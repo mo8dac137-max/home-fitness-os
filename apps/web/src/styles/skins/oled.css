@@ -25,6 +25,11 @@
   --muted: #8a8a92;
   --danger: #ff5d5d;
   --ok: #46d16a;
+
+  /* Motion personality (4D7): black-glass sharp — near-instant attack with
+     a quick settle; motion exists but never lingers on true black (JS adds
+     the 0.85x scale). */
+  --motion-timing: cubic-bezier(0.05, 0.7, 0.1, 1);
 }
 
 /* Pure black ambient: no blobs, no glow — that is the whole point */

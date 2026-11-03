@@ -73,10 +73,18 @@
   /* Touch Target */
   --min-touch-target: 48px;
 
-  /* Motion */
+  /* Motion
+   * Phase 4D7: six base tokens. JS (applyAppearanceToDOM) scales ALL six
+   * inline by the active skin's MOTION_PERSONALITIES.durationScale and
+   * zeroes them on motion:'reduced'; the clay personality is the baseline
+   * (scale 1, soft-settle cubic-bezier(0.16, 1, 0.3, 1) below). Skins own
+   * their timing curve + signature keyframes in styles/skins/*.css. */
   --motion-duration-fast: 90ms;
   --motion-duration: 200ms;
   --motion-duration-slow: 600ms;
+  --motion-duration-enter: 220ms; /* screen/card enter animations */
+  --motion-duration-draw: 900ms; /* logo ring draw */
+  --motion-stagger: 50ms; /* card stagger step */
   --motion-timing: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -89,5 +97,8 @@
     --motion-duration-fast: 0ms;
     --motion-duration: 0ms;
     --motion-duration-slow: 0ms;
+    --motion-duration-enter: 0ms;
+    --motion-duration-draw: 0ms;
+    --motion-stagger: 0ms;
   }
 }

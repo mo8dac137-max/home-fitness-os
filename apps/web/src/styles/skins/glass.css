@@ -24,6 +24,10 @@
   --muted: #a7abc4;
   --danger: #ff6b81;
   --ok: #4cd964;
+
+  /* Motion personality (4D7): long, unhurried glass glide — panes settle
+     like heavy frosted sheets (JS adds the 1.15x duration scale). */
+  --motion-timing: cubic-bezier(0.33, 0, 0.2, 1);
 }
 
 /* Vivid ambient blobs behind the frosted panels */
@@ -97,4 +101,23 @@ html[data-style='glass'] .clay-flat {
   background: rgb(255 255 255 / calc(0.045 * var(--depth)));
   border-radius: var(--radius-clay-sm);
   border: 1px solid rgb(255 255 255 / 0.08);
+}
+
+/* Motion personality (4D7): signature enter — panes breathe in with a
+   faint scale rise under the standard fade, like glass being lifted into
+   place. Opacity + transform only, per the skin's performance rules. */
+@keyframes glassEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+html[data-style='glass'] .animate-screen-enter,
+html[data-style='glass'] .animate-card-stagger {
+  animation-name: glassEnter;
 }
