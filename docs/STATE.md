@@ -2,7 +2,7 @@
 
 > Source of truth for repo structure, package exports, test coverage, and active settings keys.
 >
-> Test totals in §4 include the Phase 4D5 task: 37 files / 338 tests.
+> Test totals in §4 include the Phase 4D6 task: 38 files / 351 tests.
 
 ---
 
@@ -24,6 +24,7 @@ apps/web/
     │   ├── cloudPhase4D3.test.ts (100 lines)
     │   ├── cloudPhase4D4.test.ts (162 lines)
     │   ├── cloudPhase4D5.test.ts (271 lines)
+    │   ├── cloudPhase4D6.test.ts (172 lines)
     │   ├── cloudWiring.test.ts (64 lines)
     │   ├── deviceAuthClient.test.ts (483 lines)
     │   ├── deviceFlow.test.ts (229 lines)
@@ -48,7 +49,7 @@ apps/web/
     │   ├── Chip.tsx (59 lines)
     │   ├── ClayButton.tsx (54 lines)
     │   ├── ClayCard.tsx (27 lines)
-    │   ├── CloudAccountCard.tsx (355 lines)
+    │   ├── CloudAccountCard.tsx (423 lines)
     │   ├── CloudSyncCard.tsx (94 lines)
     │   ├── DayChip.tsx (77 lines)
     │   ├── EmptyState.tsx (48 lines)
@@ -81,7 +82,7 @@ apps/web/
     │   └── __tests__/storage.test.ts (153 lines)
     ├── supabase/
     │   ├── authClient.ts (368 lines)
-    │   ├── deviceAuthClient.ts (424 lines)
+    │   ├── deviceAuthClient.ts (452 lines)
     │   ├── deviceFlow.ts (145 lines)
     │   ├── deviceKeyStore.ts (100 lines)
     │   ├── deviceKeys.ts (159 lines)
@@ -92,7 +93,7 @@ apps/web/
     │   ├── syncService.ts (99 lines)
     │   └── syncTriggers.ts (60 lines)
     ├── cloud/
-    │   └── useCloudSession.ts (443 lines)
+    │   └── useCloudSession.ts (480 lines)
     └── styles/
         ├── clay.css (73 lines)
         ├── tokens.css (93 lines)
@@ -181,7 +182,16 @@ packages/
 
 ---
 
-## 3. Files Changed in this Task (Phase 4D5 — system theme mode + per-device rows)
+## 3. Files Changed in this Task (Phase 4D6 — per-device revoke + added-when + CORS allow-list)
+- `supabase/functions/device-auth/index.ts` (262 lines, contract hardening): `revoke` pre-checks that the target id is a live device of this user and answers `404 unknown_or_revoked_device` for unknown/already-revoked ids instead of a fake `ok` over a zero-row update (self-revoke unaffected); CORS is now built per request from the optional `DEVICE_AUTH_ALLOWED_ORIGINS` env allow-list (matching origin reflected with `Vary: Origin`, no header for others, the spike's `*` stays when unset) — M0-15b.
+- `apps/web/src/supabase/deviceAuthClient.ts` (+28 lines: `revokeDeviceById` — revokes any of the user's devices by id, never touches the local key store; empty id short-circuits with the new `bad_device_id` code; documented both-ways deployment tolerance).
+- `apps/web/src/cloud/useCloudSession.ts` (+37 lines: `revokeDevice(deviceId)` action — valid session → revoke → `refreshDeviceInfo()` re-paint, failures land in a dedicated `revokeError` state; `revokeError` added to `INITIAL`/`SIGNED_OUT_RESET`/sign-out/epoch resets and cleared alongside `deviceError` on every new round).
+- `apps/web/src/components/CloudAccountCard.tsx` (+68 lines: every device row carries a Revoke affordance — current device routes to the existing 4D3 deauthorize flow, others get a 4D3-style two-step inline confirm calling `revokeDevice`; rows now lead with `Added {date}` (`formatDate`, omitted when the server sent null) joined with the last-seen fact; `revokeError` renders next to the list).
+- `apps/web/src/i18n/index.ts` (5 new keys in both dicts: `account.device_added/device_revoke/device_revoke_hint/device_revoke_confirm/device_revoke_failed`; placeholder parity `{date}`/`{code}`).
+- `apps/web/src/__tests__/cloudPhase4D6.test.ts` (new, 13 tests).
+- `docs/REPORT_PHASE4D6.md`, `docs/STATE.md`.
+
+### Previous: Files Changed in this Task (Phase 4D5 — system theme mode + per-device rows)
 - `apps/web/src/appearance.ts` (+65 lines: `ThemeMode` (`manual`/`system`) + `style_light`/`style_dark` in `AppearanceSettings`; `isDarkStyle` classification; `resolveEffectiveStyle(settings, systemDark)`; `systemPrefersDark()` (dark outside a browser); `effectiveAppearance()`; sanitize now migrates legacy payloads — mode stays `manual` and the stored valid style joins the scheme it belongs to; `saveAppearance` persists raw and applies the resolved appearance).
 - `apps/web/src/screens/AppearanceLab.tsx` (+36 lines: a two-option theme-mode segmented control at the top of Control 1, an honest hint while system mode is active, and WYSIWYG swatch semantics — the highlight and the click target follow the skin currently painted, i.e. the active scheme's `style_light`/`style_dark` in system mode).
 - `apps/web/src/bootstrap.ts` + `apps/web/src/App.tsx`: pre-paint now applies the theme-mode-resolved appearance (no flash of the wrong scheme's skin), and while `theme_mode = system` a `matchMedia('(prefers-color-scheme: dark)')` change listener re-applies live when the OS scheme flips with the app open (removed on cleanup).
@@ -305,7 +315,7 @@ packages/
 
 ## 4. Test Counts per Package
 
-Total: **37 test files, 338 tests passing**.
+Total: **38 test files, 351 tests passing**.
 - `packages/engine-core`: 71 tests (engine-core: 59, engine-honesty-e1a: 9, engine-guard: 1, numeric-literals: 1, smoke: 1)
 - `packages/contracts`: 21 tests
 - `packages/config`: 16 tests
@@ -313,7 +323,7 @@ Total: **37 test files, 338 tests passing**.
 - `packages/library`: 9 tests (library: 7, smoke: 2)
 - `packages/sim`: 4 tests (simulation: 1, smoke: 3)
 - `packages/ports`: 1 test
-- `apps/web`: 209 tests (deviceAuthClient: 25, sessionRunnerHardening: 12, authClient: 14, deviceFlow: 9, deviceKeys: 10, historyService: 9, workoutRunnerScreen: 10, planService: 9, syncTransport: 7, syncService: 6, supabaseProbe: 5, cloudWiring: 5, cloudPhase4D3: 7, cloudPhase4D4: 16, cloudPhase4D5: 21, sessionRunner: 6, storage: 4, appearance: 12, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
+- `apps/web`: 222 tests (deviceAuthClient: 25, sessionRunnerHardening: 12, authClient: 14, deviceFlow: 9, deviceKeys: 10, historyService: 9, workoutRunnerScreen: 10, planService: 9, syncTransport: 7, syncService: 6, supabaseProbe: 5, cloudWiring: 5, cloudPhase4D3: 7, cloudPhase4D4: 16, cloudPhase4D5: 21, cloudPhase4D6: 13, sessionRunner: 6, storage: 4, appearance: 12, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
 
 ---
 
@@ -331,9 +341,10 @@ Total: **37 test files, 338 tests passing**.
 - **Done (Phase 4D3)**: auto-sync on start (one `sync()` per readiness transition, re-armed after sign-out), honest deauthorize action surfaced in the Account card (server revoke → local key clear → sign-out; a failed revoke keeps the user verified and shows the real code — only `not_enrolled` falls through), and the expired-challenge/session cleanup migration landed (owner-applied). 7 new tests (total 294), bundle 139.09/300 KB.
 - **Done (Phase 4D4)**: opportunistic auto-sync + honest device facts — a pure trigger policy (`syncTriggers`, 30 s rate limit, readiness/busy gates) drives `visibilitychange`/`online` rounds through the existing `sync()` path; the 4D3 cold-start round feeds the same limiter; the Account card's ready section now shows the server's `active_devices` count, this browser's short device id, and a `Last sync HH:mm` stamp from `lastSyncAt` (stamped on every completed round, honest failures included); 3 new i18n keys in both dicts. 16 new tests (total 317), bundle 140.51/300 KB.
 - **Done (Phase 4D5)**: auto theme mode + per-device rows — `theme_mode: manual/system` with a skin per scheme (`style_light` default paper, `style_dark` default clay), legacy settings migrate honestly, pre-paint + live `matchMedia` re-apply keep the scheme-matching skin, and the lab picker edits the skin the device is currently showing; the account card lists the server's non-revoked devices with label, `Last seen`, and a `This device` chip (edge function v2 stamps `last_seen_at` on verify and degrades to the v1 payload before the migration lands). 21 new tests (total 338), bundle 141.43/300 KB. Owner actions: **DONE** — the migration was applied live via the SQL editor (`Success. No rows returned`) and the function was redeployed from the dashboard; externally verified post-redeploy: a no-token POST answers `401 {"error":"missing_token"}` and OPTIONS answers `200 ok`, so contract v2 is live. Honest stamping semantics: `last_seen_at` is written only on verify rounds (enroll / re-verify / recovery), so a device inside its 12 h verified session shows "not seen yet" until its next verify round.
-- **Deployment note**: nothing to deploy server-side for 4C/4D2/4D3 beyond two owner actions — (1) apply `supabase/migrations/20261104000000_p4d3_cleanup_expired_device_auth.sql` in the SQL editor (optionally schedule it with the included pg_cron snippet), and (2) provide a test user for the live E2E rehearsal (`npm run e2e:live`, see `docs/REPORT_LIVE_E2E.md`): a dashboard-created user with Auto Confirm ✔ (option A, full 26 stations) or temporarily enabling anonymous sign-ins (option B, 23 stations). The project correctly ships with open signups and the anonymous provider disabled (re-confirmed live: `422 signup_disabled`, `422 anonymous_provider_disabled`).
+- **Done (Phase 4D6)**: per-device revoke + added-when + CORS allow-list — the Account card's device rows now carry a Revoke affordance (current device routes to the existing 4D3 deauthorize flow; other devices get a two-step inline confirm through the new `revokeDevice` hook action → `revokeDeviceById`, which never touches the local key store); rows lead with `Added {date}` next to the last-seen fact; the server's `revoke` answers `404 unknown_or_revoked_device` for unknown/already-revoked ids instead of a fake `ok`; CORS builds per request from the optional `DEVICE_AUTH_ALLOWED_ORIGINS` env allow-list (the spike's `*` stays when unset — M0-15b); 5 new i18n keys in both dicts. 13 new tests (total 351), bundle 141.96/300 KB.
+- **Deployment note**: nothing to deploy server-side for 4C/4D2/4D3 beyond two owner actions — (1) apply `supabase/migrations/20261104000000_p4d3_cleanup_expired_device_auth.sql` in the SQL editor (optionally schedule it with the included pg_cron snippet), and (2) provide a test user for the live E2E rehearsal (`npm run e2e:live`, see `docs/REPORT_LIVE_E2E.md`): a dashboard-created user with Auto Confirm ✔ (option A, full 26 stations) or temporarily enabling anonymous sign-ins (option B, 23 stations). The project correctly ships with open signups and the anonymous provider disabled (re-confirmed live: `422 signup_disabled`, `422 anonymous_provider_disabled`). 4D6 adds a third owner action: redeploy `device-auth` again (the honest-404 revoke + CORS allow-list source) — safe either way, the client tolerates the old bare-ok answers; optional hardening: set `DEVICE_AUTH_ALLOWED_ORIGINS` to the production origin in the function's secrets.
 - **Push note**: `c03acb5` (e2e tooling) + `c8d5e97` (Phase 4D3) were pushed to `origin/main` and CI finished green (run for `c8d5e97`, all steps success, ~38 s — the repo's normal duration).
-- **Possible next (4D6 candidates)**: surfacing per-device `created_at`/"added when" in the card rows and a per-device revoke button (needs a verified-session action contract extension); cursor-based pull only if the event log ever grows (currently a deliberate full pull); a motion personality per skin (currently every skin shares the global motion tokens); restricting the spike-only CORS `Access-Control-Allow-Origin: '*'` on `device-auth` to the app origin (M0-15b note).
+- **Possible next (4D7 candidates)**: a per-skin motion personality (currently every skin shares the global motion tokens); a revoke-confirmation second factor (product decision — the verified device session already gates the action); cursor-based pull only if the event log ever grows (currently a deliberate full pull); surfacing per-device revoked history (needs a query surface for revoked rows, currently only non-revoked devices render).
 
 ---
 

@@ -14,6 +14,7 @@ import {
   fetchDeviceStatus,
   loadEnrolledDeviceId,
   revokeCurrentDevice,
+  revokeDeviceById,
   type DeviceStatusRow,
 } from '../supabase/deviceAuthClient.js';
 import { KeyValueDeviceKeyStore } from '../supabase/deviceKeyStore.js';
@@ -54,6 +55,8 @@ export interface CloudSessionState {
   deviceId: string | null;
   /** Wall-clock ms of the last completed sync round (null = never). */
   lastSyncAt: number | null;
+  /** Phase 4D6: real server code from a failed per-device revoke (null = none). */
+  revokeError: string | null;
 }
 
 export interface CloudSessionActions {
@@ -62,6 +65,8 @@ export interface CloudSessionActions {
   signOut: () => Promise<void>;
   /** Revokes this device's key server-side, clears it locally, signs out. */
   deauthorize: () => Promise<void>;
+  /** Phase 4D6: revokes another device by id (server-side only; this browser stays verified). */
+  revokeDevice: (deviceId: string) => Promise<void>;
   sync: () => Promise<void>;
   retryDeviceFlow: () => Promise<void>;
   dismissRecoveryCodes: () => void;
@@ -83,6 +88,7 @@ const INITIAL: CloudSessionState = {
   deviceRows: null,
   deviceId: null,
   lastSyncAt: null,
+  revokeError: null,
 };
 
 /** Full reset applied after sign-out / deauthorize (Phase 4D3). */
@@ -98,6 +104,7 @@ const SIGNED_OUT_RESET: Partial<CloudSessionState> = {
   deviceRows: null,
   deviceId: null,
   lastSyncAt: null,
+  revokeError: null,
 };
 
 interface CloudStores {
@@ -202,7 +209,7 @@ export function useCloudSession(): CloudSessionHandle {
     async (email: string, password: string): Promise<void> => {
       const env = readSupabaseEnv();
       if (!env.ok) return;
-      patch({ busy: true, authError: null, deviceError: null });
+      patch({ busy: true, authError: null, deviceError: null, revokeError: null });
       const { sessionStore, deviceStore } = openStores();
       const signedIn = await signInWithPassword(env.config, sessionStore, email, password);
       if (!signedIn.ok) {
@@ -221,7 +228,7 @@ export function useCloudSession(): CloudSessionHandle {
   const retryDeviceFlow = useCallback(async (): Promise<void> => {
     const env = readSupabaseEnv();
     if (!env.ok) return;
-    patch({ busy: true, deviceError: null });
+    patch({ busy: true, deviceError: null, revokeError: null });
     const { sessionStore, deviceStore } = openStores();
     const valid = await getValidSession(env.config, sessionStore);
     if (!valid.ok) {
@@ -239,7 +246,7 @@ export function useCloudSession(): CloudSessionHandle {
     async (code: string): Promise<void> => {
       const env = readSupabaseEnv();
       if (!env.ok) return;
-      patch({ busy: true, deviceError: null });
+      patch({ busy: true, deviceError: null, revokeError: null });
       const { deviceStore } = openStores();
       const flow = await submitDeviceRecovery(
         env.config,
@@ -271,6 +278,7 @@ export function useCloudSession(): CloudSessionHandle {
       deviceRows: null,
       deviceId: null,
       lastSyncAt: null,
+      revokeError: null,
     });
   }, [patch]);
 
@@ -322,7 +330,7 @@ export function useCloudSession(): CloudSessionHandle {
   const deauthorize = useCallback(async (): Promise<void> => {
     const env = readSupabaseEnv();
     if (!env.ok) return;
-    patch({ busy: true, deviceError: null });
+    patch({ busy: true, deviceError: null, revokeError: null });
     const { sessionStore, deviceStore } = openStores();
     const valid = await getValidSession(env.config, sessionStore);
     if (!valid.ok) {
@@ -386,7 +394,7 @@ export function useCloudSession(): CloudSessionHandle {
     if (state.stage === 'signed_out') {
       if (deviceInfoEpochRef.current) {
         deviceInfoEpochRef.current = false;
-        patch({ activeDevices: null, deviceRows: null, deviceId: null, lastSyncAt: null });
+        patch({ activeDevices: null, deviceRows: null, deviceId: null, lastSyncAt: null, revokeError: null });
       }
       return;
     }
@@ -394,6 +402,34 @@ export function useCloudSession(): CloudSessionHandle {
     deviceInfoEpochRef.current = true;
     void refreshDeviceInfo();
   }, [state.stage, refreshDeviceInfo, patch]);
+
+  // ── per-device revoke (Phase 4D6): remove ANOTHER device, stay verified ──
+  const revokeDevice = useCallback(async (targetDeviceId: string): Promise<void> => {
+    const env = readSupabaseEnv();
+    if (!env.ok || targetDeviceId.trim() === '') return;
+    patch({ busy: true, revokeError: null });
+    const { sessionStore } = openStores();
+    const valid = await getValidSession(env.config, sessionStore);
+    if (!valid.ok) {
+      sessionRef.current = null;
+      patch({ busy: false, stage: 'signed_out', authError: valid.code });
+      return;
+    }
+    sessionRef.current = valid.data.session;
+    const revoked = await revokeDeviceById(
+      env.config,
+      valid.data.session.access_token,
+      targetDeviceId,
+    );
+    if (!revoked.ok) {
+      // honest: surface the real server code — the refresh below still
+      // re-paints the rows the server actually reports
+      patch({ busy: false, revokeError: revoked.code });
+    } else {
+      patch({ busy: false });
+    }
+    await refreshDeviceInfo();
+  }, [patch, refreshDeviceInfo]);
 
   // ── opportunistic auto-sync (Phase 4D4): visible again / back online ────
   const stateRef = useRef(state);
@@ -436,6 +472,7 @@ export function useCloudSession(): CloudSessionHandle {
     submitRecoveryCode,
     signOut,
     deauthorize,
+    revokeDevice,
     sync,
     retryDeviceFlow,
     dismissRecoveryCodes,

@@ -384,6 +384,11 @@ export const enDict = {
   'account.deauthorize_confirm': 'Yes, deauthorize',
   'account.cancel': 'Cancel',
   'account.deauthorize_failed': 'Deauthorization failed ({code}) — the device is still authorized on the server.',
+  'account.device_added': 'Added {date}',
+  'account.device_revoke': 'Revoke',
+  'account.device_revoke_hint': 'This removes that device’s access on the server. It can regain access with a recovery code.',
+  'account.device_revoke_confirm': 'Yes, revoke',
+  'account.device_revoke_failed': 'Revocation failed ({code}).',
 };
 
 
@@ -772,6 +777,11 @@ export const arDict: Record<keyof typeof enDict, string> = {
   'account.deauthorize_confirm': 'نعم، إلغاء التوثيق',
   'account.cancel': 'تراجع',
   'account.deauthorize_failed': 'فشل إلغاء التوثيق ({code}) — ما زال الجهاز مُوثّقًا على الخادم.',
+  'account.device_added': 'أُضيف في {date}',
+  'account.device_revoke': 'إلغاء توثيق',
+  'account.device_revoke_hint': 'سيُلغي هذا مفتاح ذلك الجهاز على الخادم. يمكنه استعادة الوصول باستخدام رمز استرداد.',
+  'account.device_revoke_confirm': 'نعم، إلغاء التوثيق',
+  'account.device_revoke_failed': 'فشل إلغاء التوثيق ({code}).',
 };
 
 

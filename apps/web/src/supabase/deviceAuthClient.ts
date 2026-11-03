@@ -30,6 +30,7 @@ export type ClientDeviceAuthErrorCode =
   | 'network_error'
   | 'timeout'
   | 'not_enrolled'
+  | 'bad_device_id'
   | 'signing_failed';
 
 export interface DeviceAuthOptions {
@@ -359,6 +360,33 @@ export async function revokeCurrentDevice(
 
   await store.clear(); // this browser's device is no longer authorized
   return { ok: true, data: { ok: true }, http_status: res.http_status };
+}
+
+/**
+ * Phase 4D6: revokes ANY of the user's devices by id — the per-device revoke
+ * buttons in the account card. Unlike `revokeCurrentDevice` it never touches
+ * the local key store: revoking another device is purely server-side, and
+ * this browser stays verified. Requires a verified device session (server
+ * answers 403 `device_session_required` otherwise). A hardened server (4D6)
+ * answers 404 `unknown_or_revoked_device` for an id that is unknown or
+ * already revoked; an older function answers a bare ok for the same input —
+ * the caller handles both honestly through the discriminated result.
+ */
+export async function revokeDeviceById(
+  config: SupabaseEnvConfig,
+  accessToken: string,
+  deviceId: string,
+  options: DeviceAuthOptions = {},
+): Promise<DeviceAuthResult<{ ok: boolean }>> {
+  if (deviceId.trim() === '') {
+    return failure<{ ok: boolean }>('bad_device_id', null, 'a device id is required');
+  }
+  return callDeviceAuth<{ ok: boolean }>(
+    config,
+    accessToken,
+    { action: 'revoke', device_id: deviceId },
+    options,
+  );
 }
 
 /**

@@ -50,11 +50,23 @@ function formatSeen(iso: string): string {
   }
 }
 
+/** Phase 4D6: local date for a device's created_at (no invented values). */
+function formatDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '--';
+    return d.toLocaleDateString([], { dateStyle: 'medium' });
+  } catch {
+    return '--';
+  }
+}
+
 export const CloudAccountCard: React.FC<{ cloud: CloudSessionHandle }> = ({ cloud }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [recoveryCode, setRecoveryCode] = useState('');
   const [confirmDeauth, setConfirmDeauth] = useState(false);
+  const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
 
   const handleSignIn = (e: React.FormEvent): void => {
     e.preventDefault();
@@ -195,35 +207,85 @@ export const CloudAccountCard: React.FC<{ cloud: CloudSessionHandle }> = ({ clou
             )}
           </div>
 
-          {/* Phase 4D4/4D5: honest device/sync facts. With contract v2 the
-              server's per-device rows lead (label + last seen + this-device
-              chip); without them the card falls back to the bare count and
-              the local short id. Each line renders only when its fact is
-              actually known (no invented values). */}
+          {/* Phase 4D4/4D5/4D6: honest device/sync facts. With contract v2
+              the server's per-device rows lead (label + added when + last
+              seen + this-device chip + per-row revoke); without them the
+              card falls back to the bare count and the local short id.
+              Each line renders only when its fact is actually known. */}
           {cloud.deviceRows !== null && cloud.deviceRows.length > 0 ? (
-            <ul className="flex flex-col gap-1.5">
+            <ul className="flex flex-col gap-2">
               {cloud.deviceRows.map((row) => {
                 const isCurrent = cloud.deviceId !== null && row.device_id === cloud.deviceId;
+                const facts: string[] = [];
+                if (row.created_at !== null) {
+                  facts.push(t('account.device_added').replace('{date}', formatDate(row.created_at)));
+                }
+                facts.push(
+                  row.last_seen_at !== null
+                    ? t('account.device_last_seen').replace('{time}', formatSeen(row.last_seen_at))
+                    : t('account.device_never_seen'),
+                );
                 return (
                   <li
                     key={row.device_id}
-                    className="flex items-center justify-between gap-2 min-w-0"
+                    className="flex flex-col gap-1 min-w-0 border-b border-white/5 pb-2 last:border-b-0 last:pb-0"
                   >
-                    <span className="text-[10px] text-[var(--muted)] truncate" dir="ltr">
-                      {row.label}
-                    </span>
-                    <span className="flex items-center gap-1.5 shrink-0">
-                      {isCurrent && (
-                        <span className="text-[9px] font-bold text-[var(--accent)] uppercase tracking-wide">
-                          {t('account.device_row_current')}
-                        </span>
-                      )}
-                      <span className="text-[10px] text-[var(--muted)] ltr-num">
-                        {row.last_seen_at !== null
-                          ? t('account.device_last_seen').replace('{time}', formatSeen(row.last_seen_at))
-                          : t('account.device_never_seen')}
+                    <div className="flex items-center justify-between gap-2 min-w-0">
+                      <span className="text-[10px] text-white/90 truncate" dir="ltr">
+                        {row.label}
                       </span>
+                      <span className="flex items-center gap-1.5 shrink-0">
+                        {isCurrent && (
+                          <span className="text-[9px] font-bold text-[var(--accent)] uppercase tracking-wide">
+                            {t('account.device_row_current')}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          disabled={cloud.busy}
+                          onClick={() => {
+                            if (isCurrent) {
+                              setConfirmDeauth(true); // full local break (4D3 flow)
+                            } else {
+                              setConfirmRevokeId(row.device_id);
+                            }
+                          }}
+                          className="text-[9px] font-bold uppercase tracking-wide text-[var(--muted)] hover:text-[var(--danger)] disabled:opacity-50 cursor-pointer"
+                        >
+                          {t('account.device_revoke')}
+                        </button>
+                      </span>
+                    </div>
+                    <span className="text-[9px] text-[var(--muted)] ltr-num truncate">
+                      {facts.join(' · ')}
                     </span>
+                    {confirmRevokeId === row.device_id && (
+                      <div className="flex flex-col gap-1.5 pt-0.5">
+                        <p className="text-[10px] text-[var(--yellow)] leading-relaxed">
+                          {t('account.device_revoke_hint')}
+                        </p>
+                        <div className="flex gap-2">
+                          <ClayButton
+                            variant="secondary"
+                            disabled={cloud.busy}
+                            onClick={() => {
+                              void cloud.revokeDevice(row.device_id).finally(() => setConfirmRevokeId(null));
+                            }}
+                            className="flex-1"
+                          >
+                            {t('account.device_revoke_confirm')}
+                          </ClayButton>
+                          <ClayButton
+                            variant="ghost"
+                            disabled={cloud.busy}
+                            onClick={() => setConfirmRevokeId(null)}
+                            className="flex-1"
+                          >
+                            {t('account.cancel')}
+                          </ClayButton>
+                        </div>
+                      </div>
+                    )}
                   </li>
                 );
               })}
@@ -251,6 +313,12 @@ export const CloudAccountCard: React.FC<{ cloud: CloudSessionHandle }> = ({ clou
           {cloud.lastSyncAt !== null && (
             <p className="text-[10px] text-[var(--muted)] ltr-num">
               {t('account.last_sync').replace('{time}', formatClock(cloud.lastSyncAt))}
+            </p>
+          )}
+
+          {cloud.revokeError !== null && (
+            <p className="text-[10px] text-[var(--danger)] font-bold" role="alert">
+              {t('account.device_revoke_failed').replace('{code}', cloud.revokeError)}
             </p>
           )}
 
