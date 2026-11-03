@@ -13,6 +13,7 @@ import {
 import { getEffectiveConfig } from '@hfos/config';
 import type { MockUserProfile } from '@hfos/sim';
 import { UpdateBanner } from '../components/UpdateBanner.js';
+import { CloudSyncCard } from '../components/CloudSyncCard.js';
 import { ClayCard } from '../components/ClayCard.js';
 import { ClayButton } from '../components/ClayButton.js';
 import { Icon } from '../components/IconSet.js';
@@ -426,6 +427,9 @@ export const MoreScreen: React.FC<MoreScreenProps> = ({
             <span className="font-mono text-[var(--accent)] font-bold ltr-num">{planGenDuration ?? '--'} ms</span>
           </div>
         </ClayCard>
+
+        {/* Cloud sync status (Phase 4A) */}
+        <CloudSyncCard />
       </div>
     );
   }

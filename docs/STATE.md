@@ -26,6 +26,9 @@ apps/web/
     │   ├── rtl.test.ts (129 lines)
     │   ├── sessionRunner.test.ts (330 lines)
     │   ├── sessionRunnerHardening.test.ts (433 lines)
+    │   ├── supabaseEnv.test.ts (54 lines)
+    │   ├── supabaseProbe.test.ts (91 lines)
+    │   ├── supabaseWiring.test.ts (43 lines)
     │   └── workoutRunnerScreen.test.ts (84 lines)
     ├── components/
     │   ├── Bar.tsx (54 lines)
@@ -33,6 +36,7 @@ apps/web/
     │   ├── Chip.tsx (59 lines)
     │   ├── ClayButton.tsx (54 lines)
     │   ├── ClayCard.tsx (27 lines)
+    │   ├── CloudSyncCard.tsx (94 lines)
     │   ├── DayChip.tsx (77 lines)
     │   ├── EmptyState.tsx (48 lines)
     │   ├── IconSet.tsx (133 lines)
@@ -48,11 +52,11 @@ apps/web/
     │   ├── planService.ts (250 lines)
     │   └── sessionRunner.ts (669 lines)
     ├── i18n/
-    │   └── index.ts (643 lines)
+    │   └── index.ts (663 lines)
     ├── screens/
     │   ├── AppearanceLab.tsx (244 lines)
     │   ├── HomeScreen.tsx (394 lines)
-    │   ├── MoreScreen.tsx (528 lines)
+    │   ├── MoreScreen.tsx (531 lines)
     │   ├── ProgressScreen.tsx (174 lines)
     │   ├── TrainScreen.tsx (428 lines)
     │   └── WorkoutRunnerScreen.tsx (1020 lines)
@@ -62,6 +66,9 @@ apps/web/
     │   ├── IndexedDbEventLog.ts (111 lines)
     │   ├── KeyValueStore.ts (107 lines)
     │   └── __tests__/storage.test.ts (153 lines)
+    ├── supabase/
+    │   ├── env.ts (61 lines)
+    │   └── probe.ts (56 lines)
     └── styles/
         ├── clay.css (73 lines)
         └── tokens.css (93 lines)
@@ -125,12 +132,24 @@ packages/
 - **`ProgressScreen`**: Mastery score ring, rep target mastery, RPE effort tracking, and movement exposure window.
 - **`MoreScreen`**: Grouped navigation for Settings, Appearance Lab, Equipment, Data, and System Diagnostics.
 - **`AppearanceLab`**: Live preview with controls for accent presets, clay depth, corner radius, density, and haptics.
+- **`CloudSyncCard`**: Honest cloud status card (More › About) — validates env config, probes the project's auth health endpoint once per mount, reports connected/unreachable/not-configured via i18n only.
+- **`supabase/env` + `supabase/probe`**: env-driven config plumbing (`readSupabaseEnv`, degrades to typed `missing`/`invalid_url`, never throws) and injected-I/O liveness probe (`probeCloudConnection`); no supabase-js dependency yet (lands with auth in 4B/4C).
 - **`PlanService`**: Manages `getOrCreatePlan`, horizon sliding, day decision summaries, generation benchmarking, and event logging.
 - **`sessionRunner`**: Session runner state, `sessionReducer`, event emission (`session.started`, `session.set_logged`, `session.completed`, `session.abandoned`), dynamic rest computation with ceiling-clamped extensions, in-flight persistence.
 
 ---
 
-## 3. Files Changed in this Task (History Wiring — deferred item)
+## 3. Files Changed in this Task (Phase 4A — Supabase Foundation Wiring)
+- `.env.example` (placeholders for `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY`; real values live only in the gitignored `.env` — publishable key is public by design, never the secret/service_role).
+- `apps/web/src/supabase/env.ts` (new, 61 lines: `readSupabaseEnv` validates and origin-normalizes config from `import.meta.env`; degrades to typed `missing`/`invalid_url` results, never throws; plain http accepted on loopback only).
+- `apps/web/src/supabase/probe.ts` (new, 56 lines: `probeCloudConnection` against the project's `/auth/v1/health` with injected fetch/clock/timeout; honest `online`/`latency_ms`/`http_status`).
+- `apps/web/src/components/CloudSyncCard.tsx` (new, 94 lines: honest cloud status card — not configured / invalid config / checking / connected / unreachable; i18n-only copy; RTL-safe logical classes).
+- `apps/web/src/screens/MoreScreen.tsx` (renders `<CloudSyncCard />` in the About diagnostics view).
+- `apps/web/src/i18n/index.ts` (added 8 `sync.*` keys in both dicts; now 284/284 parity).
+- `apps/web/src/__tests__/supabaseEnv.test.ts` (new, 4 tests), `supabaseProbe.test.ts` (new, 5 tests: success latency, trailing-slash normalization, 521 paused-project, network failure, timeout abort), `supabaseWiring.test.ts` (new, 3 source guards incl. `.env` gitignored and no hard-coded copy).
+- `docs/REPORT_PHASE4A.md`, `docs/STATE.md`.
+
+### Previous: Files Changed in (History Wiring — deferred item)
 - `apps/web/src/engine/historyService.ts` (new, 184 lines: pure `buildHistorySummary` over injected envelopes + `loadHistorySummary` EventLog loader; window sizes from `@hfos/config`; pattern fallback via `@hfos/library`; defensive idempotency dedupe).
 - `apps/web/src/__tests__/historyService.test.ts` (new, 9 behavioral tests: empty-log honesty, 7-day completion window, rep-target hits + average RPE, 14d pattern vs 7d muscle exposure, library pattern fallback, planned main sessions, idempotency dedupe, abandoned semantics, InMemoryEventLog round-trip).
 - `apps/web/src/__tests__/historyWiring.test.ts` (new, 3 source guards: App wiring, non-estimate bars, i18n-only labels).
@@ -174,7 +193,7 @@ packages/
 
 ## 4. Test Counts per Package
 
-Total: **24 test files, 196 tests passing**.
+Total: **27 test files, 208 tests passing**.
 - `packages/engine-core`: 71 tests (engine-core: 59, engine-honesty-e1a: 9, engine-guard: 1, numeric-literals: 1, smoke: 1)
 - `packages/contracts`: 21 tests
 - `packages/config`: 16 tests
@@ -182,14 +201,15 @@ Total: **24 test files, 196 tests passing**.
 - `packages/library`: 9 tests (library: 7, smoke: 2)
 - `packages/sim`: 4 tests (simulation: 1, smoke: 3)
 - `packages/ports`: 1 test
-- `apps/web`: 64 tests (sessionRunnerHardening: 12, historyService: 9, workoutRunnerScreen: 10, sessionRunner: 6, planService: 6, storage: 4, appearance: 5, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, i18n-compliance: 1)
+- `apps/web`: 79 tests (sessionRunnerHardening: 12, historyService: 9, workoutRunnerScreen: 10, supabaseProbe: 5, sessionRunner: 6, planService: 6, storage: 4, appearance: 5, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
 
 ---
 
 ## 5. Known Issues and TODOs
 - **Done (Phase 3)**: Arabic dictionary is at 100% coverage (now 268/268 keys in both dicts) and a permanent RTL audit guard blocks physical direction classes/CSS.
 - **Done (History Wiring)**: the deferred item is complete — ProgressScreen and HomeScreen now derive mastery, consistency, and exposure from the append-only session event log via `historyService`; static mock metrics were removed.
-- **Phase 4 (Next)**: Supabase sync (Gated).
+- **Done (Phase 4A)**: Supabase foundation wiring — env-driven config (`.env` gitignored; `.env.example` placeholders), `readSupabaseEnv` validation, `probeCloudConnection` auth-health probe, `CloudSyncCard` honest status (More › About). Live project `tbyqtmgxomznpemkkaee` verified reachable (auth health HTTP 200) — its database has **no M0-15 schema applied yet**.
+- **Phase 4B (Next)**: apply the M0-15 migration + RLS selftest to the live project (dashboard SQL editor or DB credentials), then 4C device auth, 4D event sync.
 
 ---
 

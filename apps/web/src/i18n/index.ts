@@ -301,6 +301,16 @@ export const enDict = {
   'home.exercises_count_unit': 'exercises',
   'home.sets_unit': 'sets',
   'home.working_sets_unit': 'working sets',
+
+  // ── Phase 4A: cloud sync status (More › About) ──
+  'sync.title': 'Cloud sync',
+  'sync.subtitle': 'Local-first. The cloud is an optional mirror of your logged sessions.',
+  'sync.status_checking': 'Checking…',
+  'sync.status_online': 'Connected',
+  'sync.status_unreachable': 'Unreachable',
+  'sync.status_not_configured': 'Not configured',
+  'sync.status_invalid_config': 'Invalid configuration',
+  'sync.latency_ms': '{ms} ms',
 };
 
 
@@ -606,6 +616,16 @@ export const arDict: Record<keyof typeof enDict, string> = {
   'home.exercises_count_unit': 'تمارين',
   'home.sets_unit': 'مجموعات',
   'home.working_sets_unit': 'مجموعات عمل',
+
+  // ── Phase 4A: cloud sync status (More › About) ──
+  'sync.title': 'المزامنة السحابية',
+  'sync.subtitle': 'محلي أولًا. السحابة نسخة اختيارية من جلساتك المسجلة.',
+  'sync.status_checking': 'جارٍ التحقق…',
+  'sync.status_online': 'متصل',
+  'sync.status_unreachable': 'لا يمكن الوصول',
+  'sync.status_not_configured': 'غير مُهيّأ',
+  'sync.status_invalid_config': 'إعداد غير صالح',
+  'sync.latency_ms': '{ms} ملّي ثانية',
 };
 
 
