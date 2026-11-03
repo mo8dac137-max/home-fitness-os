@@ -360,6 +360,11 @@ export const enDict = {
   'account.sync_result': 'Pushed {pushed} · merged {merged}',
   'account.sync_failed': 'Sync failed — try again later.',
   'account.cloud_not_configured': 'Cloud sync is not configured on this build.',
+  'account.deauthorize': 'Deauthorize this device',
+  'account.deauthorize_hint': 'This revokes this device’s key on the server and signs you out here. Other devices and your saved recovery codes are unaffected.',
+  'account.deauthorize_confirm': 'Yes, deauthorize',
+  'account.cancel': 'Cancel',
+  'account.deauthorize_failed': 'Deauthorization failed ({code}) — the device is still authorized on the server.',
 };
 
 
@@ -724,6 +729,11 @@ export const arDict: Record<keyof typeof enDict, string> = {
   'account.sync_result': 'أُرسل {pushed} · أُدمج {merged}',
   'account.sync_failed': 'فشلت المزامنة — حاول لاحقًا.',
   'account.cloud_not_configured': 'المزامنة السحابية غير مُهيّأة في هذه النسخة.',
+  'account.deauthorize': 'إلغاء توثيق هذا الجهاز',
+  'account.deauthorize_hint': 'سيُلغي هذا مفتاح هذا الجهاز على الخادم ويُسجّل خروجك من هنا. الأجهزة الأخرى ورموز الاسترداد المحفوظة لا تتأثر.',
+  'account.deauthorize_confirm': 'نعم، إلغاء التوثيق',
+  'account.cancel': 'تراجع',
+  'account.deauthorize_failed': 'فشل إلغاء التوثيق ({code}) — ما زال الجهاز مُوثّقًا على الخادم.',
 };
 
 

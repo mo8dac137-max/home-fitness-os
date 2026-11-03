@@ -2,7 +2,7 @@
 
 > Source of truth for repo structure, package exports, test coverage, and active settings keys.
 >
-> Test totals in §4 include the E1b-residual pass (commit `6bad8a5`): 34 files / 287 tests.
+> Test totals in §4 include Phase 4D3: 35 files / 294 tests.
 
 ---
 
@@ -153,11 +153,11 @@ packages/
 - **`MoreScreen`**: Grouped navigation for Settings, Appearance Lab, Equipment, Data, and System Diagnostics.
 - **`AppearanceLab`**: Live preview with controls for accent presets, clay depth, corner radius, density, and haptics.
 - **`CloudSyncCard`**: Honest cloud status card (More › About) — validates env config, probes the project's auth health endpoint once per mount, reports connected/unreachable/not-configured via i18n only.
-- **`CloudAccountCard`** (Phase 4D2): the account surface (More › About) — inline sign-in form, device verification/recovery states, one-time recovery-codes display, Sync now / Sign out, and honest sync-result/sync-failure lines; i18n-only copy, logical (RTL-safe) classes only.
+- **`CloudAccountCard`** (Phase 4D2/4D3): the account surface (More › About) — inline sign-in form, device verification/recovery states, one-time recovery-codes display, Sync now / Sign out, a two-step **Deauthorize this device** confirm with an honest failure line carrying the real server code, and honest sync-result/sync-failure lines; i18n-only copy, logical (RTL-safe) classes only.
 - **`supabase/authClient`** (Phase 4D2): Supabase Auth REST client without supabase-js — `signInWithPassword`, `refreshSession`, `getValidSession` (pre-emptive refresh within a 60 s TTL margin; 4xx refresh rejections clear the session while transient network/5xx failures deliberately keep it), `signOut` (best-effort global logout, never blocks local sign-out); `AuthSessionStore` port with `InMemory` + `KeyValue` implementations and defensive rehydration.
 - **`supabase/deviceFlow`** (Phase 4D2): one idempotent state machine over the 4C primitives — `runDeviceFlow` (status → verified / enroll+verify with one-time codes / recovery_required with reasons) and `submitDeviceRecovery`; every outcome is data, server codes pass through verbatim.
 - **`sync/syncService`** (Phase 4D2): `syncNow` — push all local envelopes (idempotent by primary key) then pull remote rows and merge only genuinely new ones into the local `EventLog`, with honest pushed/duplicates/pulled/merged accounting.
-- **`cloud/useCloudSession`** (Phase 4D2): thin React glue — stages (checking/signed_out/device_flow/recovery/ready), mount-time restore + device-flow convergence, sign-in/recovery/sign-out actions, and `sync()` with one re-verify retry when a 12 h device session lapsed; the app stays fully usable signed out.
+- **`cloud/useCloudSession`** (Phase 4D2/4D3): thin React glue — stages (checking/signed_out/device_flow/recovery/ready), mount-time restore + device-flow convergence, sign-in/recovery/sign-out actions, `sync()` with one re-verify retry when a 12 h device session lapsed, one **auto-sync per readiness transition** (re-arms only after `signed_out`), and `deauthorize()` (server revoke → local key clear → sign-out; a failed revoke never pretends success); the app stays fully usable signed out.
 - **`supabase/env` + `supabase/probe`**: env-driven config plumbing (`readSupabaseEnv`, degrades to typed `missing`/`invalid_url`, never throws) and injected-I/O liveness probe (`probeCloudConnection`); no supabase-js dependency yet (lands with auth in 4B/4C).
 - **`supabase/deviceKeys`**: WebCrypto ECDSA P-256 device key core (Phase 4C) — `generateDeviceKeyPair` (private key non-extractable), `signNonce` (SHA-256 over the raw UTF-8 nonce, base64url out), `exportPublicJwk` (minimal `kty/crv/x/y` JWK), `isValidPublicDeviceJwk` (mirror of the server's `validPublicJwk`), and `verifyNonceSignature` (server-algorithm replica for tests).
 - **`supabase/deviceKeyStore`**: `DeviceKeyStore` port persisting the enrolled-device record (`device_id`, `label`, `public_jwk`, non-extractable `private_key` as a structured-cloned `CryptoKey` — never serialized to a string). `InMemoryDeviceKeyStore` for tests, `KeyValueDeviceKeyStore` over the app's IndexedDB `kv` store for the browser, with defensive rehydration (`storedDeviceRecordFromUnknown`).
@@ -167,7 +167,15 @@ packages/
 
 ---
 
-## 3. Files Changed in this Task (Live E2E rehearsal tooling)
+## 3. Files Changed in this Task (Phase 4D3 — auto-sync, honest deauthorize, server housekeeping)
+- `apps/web/src/cloud/useCloudSession.ts` (auto-sync effect — one `sync()` per readiness transition, ref-guarded, re-armed after `signed_out`; `deauthorize` action — `revokeCurrentDevice` then local sign-out, with the honest failure posture: any revoke failure surfaces the real code and keeps the user verified; only `not_enrolled` falls through to the local break; `SIGNED_OUT_RESET` hoisted to module scope).
+- `apps/web/src/components/CloudAccountCard.tsx` (two-step deauthorize confirm — hint + confirm/cancel pair, disabled while busy; `account.deauthorize_failed` alert with the real code inside the ready section).
+- `apps/web/src/i18n/index.ts` (5 new keys in both dicts: `account.deauthorize`, `account.deauthorize_hint`, `account.deauthorize_confirm`, `account.cancel`, `account.deauthorize_failed`).
+- `supabase/migrations/20261104000000_p4d3_cleanup_expired_device_auth.sql` (new: deletes only expired `device_challenges` + lapsed `device_sessions` with row counts; never touches `authorized_devices`/`recovery_codes`; two `expires_at` indexes; owner-applied via SQL editor, optional pg_cron schedule included as a comment).
+- `apps/web/src/__tests__/cloudPhase4D3.test.ts` (new, 7 tests: auto-sync fires exactly once per readiness and re-arms only after `signed_out`; sync() early-return posture; revoke-then-sign-out ordering; failed revoke never pretends success — failure branch returns before any local sign-out; card two-step confirm + all 5 keys in BOTH dicts; migration has exactly two deletes and never touches authoritative rows).
+- `docs/REPORT_PHASE4D3.md`, `docs/STATE.md`.
+
+### Previous: Files Changed in this Task (Live E2E rehearsal tooling)
 - `scripts/e2e_device_auth.mjs` (new, 403 lines: zero-dependency Node 18+ operator script — real-wire rehearsal of device auth + `session_events` RLS; 23 stations, 26 with an email+password test user; signs the server nonce as raw UTF-8 ECDSA P-256/SHA-256 → unpadded base64url; never prints tokens/nonces/recovery codes; fresh disposable user per run; exit 0/1/2; manual only, never part of `npm test`/CI).
 - `package.json` (new script: `e2e:live` → `node scripts/e2e_device_auth.mjs`).
 - `eslint.config.js` (scripts-block globals extended with the Node 18+ built-ins the rehearsal uses — `URL`, `URLSearchParams`, `TextEncoder`, `TextDecoder`, `atob`, `btoa`, `fetch`, `AbortSignal`, `crypto` — `no-undef` is disabled for TS files but applies to `.mjs`).
@@ -252,7 +260,7 @@ packages/
 
 ## 4. Test Counts per Package
 
-Total: **34 test files, 287 tests passing**.
+Total: **35 test files, 294 tests passing**.
 - `packages/engine-core`: 71 tests (engine-core: 59, engine-honesty-e1a: 9, engine-guard: 1, numeric-literals: 1, smoke: 1)
 - `packages/contracts`: 21 tests
 - `packages/config`: 16 tests
@@ -260,7 +268,7 @@ Total: **34 test files, 287 tests passing**.
 - `packages/library`: 9 tests (library: 7, smoke: 2)
 - `packages/sim`: 4 tests (simulation: 1, smoke: 3)
 - `packages/ports`: 1 test
-- `apps/web`: 158 tests (deviceAuthClient: 25, sessionRunnerHardening: 12, authClient: 14, deviceFlow: 9, deviceKeys: 10, historyService: 9, workoutRunnerScreen: 10, planService: 9, syncTransport: 7, syncService: 6, supabaseProbe: 5, cloudWiring: 5, sessionRunner: 6, storage: 4, appearance: 5, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
+- `apps/web`: 165 tests (deviceAuthClient: 25, sessionRunnerHardening: 12, authClient: 14, deviceFlow: 9, deviceKeys: 10, historyService: 9, workoutRunnerScreen: 10, planService: 9, syncTransport: 7, syncService: 6, supabaseProbe: 5, cloudWiring: 5, cloudPhase4D3: 7, sessionRunner: 6, storage: 4, appearance: 5, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
 
 ---
 
@@ -274,8 +282,10 @@ Total: **34 test files, 287 tests passing**.
 - **Done (Phase 4D2)**: auth integration + sync orchestration — `authClient` (Auth REST + session store), `deviceFlow` (status/enroll/verify/recovery state machine), `syncService` (idempotent push+pull+merge), `useCloudSession` hook, `CloudAccountCard` UI (More › About) with full en/ar i18n (28 new keys), App wiring (`cloud.sync()` after workout completion). 34 new tests (total 284), all green; bundle 137.47/300 KB.
 - **Done (Phase 4D1)**: sync data layer — `session_events` migration (append-only, user + device-session RLS) and `syncTransport` (batched idempotent push, cursor pull) with 7 tests. Migration applied live by the owner and externally verified: anon `GET /rest/v1/session_events` answers `401 42501 permission denied` (table present, revoked-privilege posture).
 - **Done (E1b residuals)**: honest UI + persistent device id — plan/session events carry a persistent UUIDv7 device id (`hfos.device_id` in kv) instead of `redmi12_client`/`device-redmi12-local`; decision summaries derive unit from `PlanDay.unit`, reasons from the day's DecisionRecord term_values (top-3 real contributions as i18n keys + 0–100 chips) or `reason_code`, real `revision_reason` passthrough, defaulted-inputs honesty banner; fixed `SystemIdGenerator` malformed-UUID bug (10-char final group). 3 new tests (total 287), CI green.
-- **Deployment note**: nothing to deploy server-side for 4C/4D2 — the `device-auth` function, the M0-15 schema, and the `session_events` table are all live and verified. The live end-to-end rehearsal is fully scripted and landed in the repo (`npm run e2e:live`, see `docs/REPORT_LIVE_E2E.md`); it is gated on exactly one owner action — a dashboard-created test user (option A, full 26 stations) or temporarily enabling anonymous sign-ins (option B, 23 stations) — because the project correctly ships with open signups and the anonymous provider disabled (re-confirmed live: `422 signup_disabled`, `422 anonymous_provider_disabled`).
-- **Possible next (4D3 candidates)**: auto-sync on app start when ready (currently: after workout completion + manual Sync now), a deauthorize-device action (server `revoke` is implemented client-side but not surfaced), and cleaning up expired challenges/sessions via a scheduled SQL job.
+- **Done (Phase 4D3)**: auto-sync on start (one `sync()` per readiness transition, re-armed after sign-out), honest deauthorize action surfaced in the Account card (server revoke → local key clear → sign-out; a failed revoke keeps the user verified and shows the real code — only `not_enrolled` falls through), and the expired-challenge/session cleanup migration landed (owner-applied). 7 new tests (total 294), bundle 139.09/300 KB.
+- **Deployment note**: nothing to deploy server-side for 4C/4D2/4D3 beyond two owner actions — (1) apply `supabase/migrations/20261104000000_p4d3_cleanup_expired_device_auth.sql` in the SQL editor (optionally schedule it with the included pg_cron snippet), and (2) provide a test user for the live E2E rehearsal (`npm run e2e:live`, see `docs/REPORT_LIVE_E2E.md`): a dashboard-created user with Auto Confirm ✔ (option A, full 26 stations) or temporarily enabling anonymous sign-ins (option B, 23 stations). The project correctly ships with open signups and the anonymous provider disabled (re-confirmed live: `422 signup_disabled`, `422 anonymous_provider_disabled`).
+- **Push note**: commits `c03acb5` (e2e tooling) + the 4D3 commit are ready on local `main`, gated only on the owner's GitHub token (the fine-grained PAT was used in a previous session and is no longer in this environment); CI to be watched right after the push.
+- **Possible next (4D4 candidates)**: auto-sync on `visibilitychange`/reconnect (currently: app-start readiness + workout completion + manual Sync now), surfacing server-side `active_devices`/last-seen in the Account card, and wiring the cleanup function into a real scheduled job once pg_cron availability is confirmed on the project.
 
 ---
 

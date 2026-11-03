@@ -10,6 +10,7 @@ import {
   type AuthSession,
 } from '../supabase/authClient.js';
 import { runDeviceFlow, submitDeviceRecovery } from '../supabase/deviceFlow.js';
+import { revokeCurrentDevice } from '../supabase/deviceAuthClient.js';
 import { KeyValueDeviceKeyStore } from '../supabase/deviceKeyStore.js';
 import { syncNow, type SyncSummary } from '../sync/syncService.js';
 
@@ -45,6 +46,8 @@ export interface CloudSessionActions {
   signIn: (email: string, password: string) => Promise<void>;
   submitRecoveryCode: (code: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Revokes this device's key server-side, clears it locally, signs out. */
+  deauthorize: () => Promise<void>;
   sync: () => Promise<void>;
   retryDeviceFlow: () => Promise<void>;
   dismissRecoveryCodes: () => void;
@@ -62,6 +65,17 @@ const INITIAL: CloudSessionState = {
   deviceError: null,
   lastSync: null,
   syncBusy: false,
+};
+
+/** Full reset applied after sign-out / deauthorize (Phase 4D3). */
+const SIGNED_OUT_RESET: Partial<CloudSessionState> = {
+  stage: 'signed_out',
+  email: null,
+  recoveryCodes: null,
+  authError: null,
+  deviceError: null,
+  lastSync: null,
+  busy: false,
 };
 
 interface CloudStores {
@@ -274,11 +288,57 @@ export function useCloudSession(): CloudSessionHandle {
     patch({ recoveryCodes: null });
   }, [patch]);
 
+  // ── deauthorize (Phase 4D3): revoke + clean local break ─────────────────
+  const deauthorize = useCallback(async (): Promise<void> => {
+    const env = readSupabaseEnv();
+    if (!env.ok) return;
+    patch({ busy: true, deviceError: null });
+    const { sessionStore, deviceStore } = openStores();
+    const valid = await getValidSession(env.config, sessionStore);
+    if (!valid.ok) {
+      // No live session: nothing server-side to revoke — a plain local break.
+      sessionRef.current = null;
+      await authSignOut(env.config, sessionStore);
+      patch(SIGNED_OUT_RESET);
+      return;
+    }
+    sessionRef.current = valid.data.session;
+    const revoked = await revokeCurrentDevice(
+      env.config,
+      valid.data.session.access_token,
+      deviceStore,
+    );
+    // 'not_enrolled' just means this browser has no key pair to revoke —
+    // the local sign-out below is still exactly what the user asked for.
+    if (!revoked.ok && revoked.code !== 'not_enrolled') {
+      // Honest failure: the device is still authorized server-side, so the
+      // user must know. Stay signed in + verified and surface the real code.
+      patch({ busy: false, deviceError: revoked.code });
+      return;
+    }
+    await authSignOut(env.config, sessionStore);
+    sessionRef.current = null;
+    patch(SIGNED_OUT_RESET);
+  }, [patch]);
+
+  // ── auto-sync (Phase 4D3): once per cold start, when the cloud is ready ──
+  const autoSyncRef = useRef(false);
+  useEffect(() => {
+    if (state.stage === 'signed_out') {
+      autoSyncRef.current = false; // a fresh sign-in may auto-sync again
+      return;
+    }
+    if (state.stage !== 'ready' || autoSyncRef.current) return;
+    autoSyncRef.current = true;
+    void sync();
+  }, [state.stage, sync]);
+
   return {
     ...state,
     signIn,
     submitRecoveryCode,
     signOut,
+    deauthorize,
     sync,
     retryDeviceFlow,
     dismissRecoveryCodes,

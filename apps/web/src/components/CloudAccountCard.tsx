@@ -34,6 +34,7 @@ export const CloudAccountCard: React.FC<{ cloud: CloudSessionHandle }> = ({ clou
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [recoveryCode, setRecoveryCode] = useState('');
+  const [confirmDeauth, setConfirmDeauth] = useState(false);
 
   const handleSignIn = (e: React.FormEvent): void => {
     e.preventDefault();
@@ -46,6 +47,12 @@ export const CloudAccountCard: React.FC<{ cloud: CloudSessionHandle }> = ({ clou
     if (recoveryCode.trim() === '' || cloud.busy) return;
     void cloud.submitRecoveryCode(recoveryCode);
     setRecoveryCode('');
+  };
+
+  // Phase 4D3: two-step confirm — the first tap only shows the honest hint.
+  const handleDeauthorize = (): void => {
+    if (cloud.busy) return;
+    void cloud.deauthorize().finally(() => setConfirmDeauth(false));
   };
 
   return (
@@ -196,6 +203,46 @@ export const CloudAccountCard: React.FC<{ cloud: CloudSessionHandle }> = ({ clou
           >
             {t('account.sign_out')}
           </button>
+
+          {cloud.deviceError !== null && (
+            <p className="text-xs text-[var(--danger)] font-bold" role="alert">
+              {t('account.deauthorize_failed').replace('{code}', cloud.deviceError)}
+            </p>
+          )}
+
+          {confirmDeauth ? (
+            <div className="flex flex-col gap-2 pt-2 border-t border-white/10">
+              <p className="text-xs text-[var(--yellow)] leading-relaxed">
+                {t('account.deauthorize_hint')}
+              </p>
+              <div className="flex gap-2">
+                <ClayButton
+                  variant="secondary"
+                  disabled={cloud.busy}
+                  onClick={handleDeauthorize}
+                  className="flex-1"
+                >
+                  {t('account.deauthorize_confirm')}
+                </ClayButton>
+                <ClayButton
+                  variant="ghost"
+                  disabled={cloud.busy}
+                  onClick={() => setConfirmDeauth(false)}
+                  className="flex-1"
+                >
+                  {t('account.cancel')}
+                </ClayButton>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmDeauth(true)}
+              disabled={cloud.busy}
+              className="text-xs text-[var(--muted)] hover:text-white cursor-pointer text-start"
+            >
+              {t('account.deauthorize')}
+            </button>
+          )}
         </div>
       )}
 
