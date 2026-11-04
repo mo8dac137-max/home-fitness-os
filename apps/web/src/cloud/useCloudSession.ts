@@ -20,6 +20,7 @@ import {
 } from '../supabase/deviceAuthClient.js';
 import { KeyValueDeviceKeyStore } from '../supabase/deviceKeyStore.js';
 import { syncNow, type SyncSummary } from '../sync/syncService.js';
+import { KeyValuePullCursorStore } from '../sync/pullCursorStore.js';
 import { createAutoSyncPolicy, type AutoSyncPolicy } from '../sync/syncTriggers.js';
 
 /**
@@ -115,12 +116,14 @@ const SIGNED_OUT_RESET: Partial<CloudSessionState> = {
 interface CloudStores {
   sessionStore: KeyValueAuthSessionStore;
   deviceStore: KeyValueDeviceKeyStore;
+  cursorStore: KeyValuePullCursorStore;
 }
 
 function openStores(): CloudStores {
   return {
     sessionStore: new KeyValueAuthSessionStore(new KeyValueStore()),
     deviceStore: new KeyValueDeviceKeyStore(new KeyValueStore()),
+    cursorStore: new KeyValuePullCursorStore(new KeyValueStore()),
   };
 }
 
@@ -302,11 +305,13 @@ export function useCloudSession(): CloudSessionHandle {
     sessionRef.current = valid.data.session;
 
     const eventLog = new IndexedDbEventLog();
+    const { cursorStore } = openStores();
     const first = await syncNow(
       env.config,
       valid.data.session.access_token,
       valid.data.session.user_id,
       eventLog,
+      { pullCursor: cursorStore },
     );
     if (first.ok) {
       patch({ syncBusy: false, lastSync: first, lastSyncAt: Date.now() });
@@ -324,6 +329,7 @@ export function useCloudSession(): CloudSessionHandle {
       valid.data.session.access_token,
       valid.data.session.user_id,
       eventLog,
+      { pullCursor: cursorStore },
     );
     patch({ syncBusy: false, lastSync: second, lastSyncAt: Date.now() });
   }, [patch]);

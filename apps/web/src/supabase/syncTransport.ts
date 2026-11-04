@@ -51,6 +51,12 @@ export interface PushResult {
 export interface PullResult {
   ok: boolean;
   envelopes: EventEnvelope[];
+  /**
+   * Phase 4D10: the newest server-side `synced_at` seen in this pull (null =
+   * no row carried one). Server-clock based, so it is the honest cursor
+   * basis — client `occurred_at` values can skew backwards across devices.
+   */
+  max_synced_at: string | null;
   http_status: number | null;
   error: string | null;
 }
@@ -217,21 +223,37 @@ export async function pullEvents(
   config: SupabaseEnvConfig,
   accessToken: string,
   userId: string,
-  options: SyncTransportOptions & { sinceIso?: string; pageSize?: number } = {}
+  options: SyncTransportOptions & {
+    sinceIso?: string;
+    /**
+     * Phase 4D10: cursor filter on the server-assigned `synced_at` (strict
+     * gt). When set, the ordering switches to synced_at-first so the cursor
+     * basis stays consistent across pages.
+     */
+    sinceSyncedIso?: string;
+    pageSize?: number;
+  } = {}
 ): Promise<PullResult> {
   const pageSize = options.pageSize ?? DEFAULT_PULL_PAGE;
   const envelopes: EventEnvelope[] = [];
+  let maxSyncedAt: string | null = null;
 
   try {
     for (;;) {
+      const order = options.sinceSyncedIso !== undefined
+        ? 'synced_at.asc,idempotency_key.asc'
+        : 'occurred_at.asc,idempotency_key.asc';
       const params = new URLSearchParams({
         select: '*',
         user_id: `eq.${userId}`,
-        order: 'occurred_at.asc,idempotency_key.asc',
+        order,
         limit: String(pageSize),
       });
       if (options.sinceIso !== undefined) {
         params.set('occurred_at', `gt.${options.sinceIso}`);
+      }
+      if (options.sinceSyncedIso !== undefined) {
+        params.set('synced_at', `gt.${options.sinceSyncedIso}`);
       }
 
       const res = await request(
@@ -245,6 +267,7 @@ export async function pullEvents(
         return {
           ok: false,
           envelopes,
+          max_synced_at: maxSyncedAt,
           http_status: res.status,
           error: `pull failed: HTTP ${res.status}${detail ? ` — ${detail.slice(0, 200)}` : ''}`,
         };
@@ -255,12 +278,25 @@ export async function pullEvents(
         return {
           ok: false,
           envelopes,
+          max_synced_at: maxSyncedAt,
           http_status: res.status,
           error: 'pull failed: unexpected response body',
         };
       }
 
       for (const row of rows) {
+        // track the newest server clock value for the 4D10 pull cursor
+        if (row !== null && typeof row === 'object') {
+          const synced = (row as Record<string, unknown>)['synced_at'];
+          const t = typeof synced === 'string' ? Date.parse(synced) : NaN;
+          if (
+            typeof synced === 'string' &&
+            Number.isFinite(t) &&
+            (maxSyncedAt === null || t > Date.parse(maxSyncedAt))
+          ) {
+            maxSyncedAt = synced;
+          }
+        }
         const envelope = envelopeFromSyncRow(row);
         if (envelope !== null) envelopes.push(envelope);
       }
@@ -271,10 +307,11 @@ export async function pullEvents(
     return {
       ok: false,
       envelopes,
+      max_synced_at: null,
       http_status: null,
       error: `pull failed: ${err instanceof Error ? err.message : String(err)}`,
     };
   }
 
-  return { ok: true, envelopes, http_status: 200, error: null };
+  return { ok: true, envelopes, max_synced_at: maxSyncedAt, http_status: 200, error: null };
 }

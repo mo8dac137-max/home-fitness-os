@@ -2,7 +2,7 @@
 
 > Source of truth for repo structure, package exports, test coverage, and active settings keys.
 >
-> Test totals in §4 include the Phase 4D9 task: 41 files / 376 tests.
+> Test totals in §4 include the Phase 4D10 task: 42 files / 389 tests.
 
 ---
 
@@ -44,6 +44,7 @@ apps/web/
     │   ├── supabaseEnv.test.ts (54 lines)
     │   ├── supabaseProbe.test.ts (91 lines)
     │   ├── supabaseWiring.test.ts (43 lines)
+    │   ├── syncCursor4D10.test.ts (263 lines)
     │   ├── syncTransport.test.ts (173 lines)
     │   └── workoutRunnerScreen.test.ts (84 lines)
     ├── components/
@@ -91,12 +92,13 @@ apps/web/
     │   ├── deviceKeys.ts (159 lines)
     │   ├── env.ts (61 lines)
     │   ├── probe.ts (56 lines)
-    │   └── syncTransport.ts (280 lines)
+    │   └── syncTransport.ts (317 lines)
     ├── sync/
-    │   ├── syncService.ts (99 lines)
+    │   ├── pullCursorStore.ts (42 lines)
+    │   ├── syncService.ts (155 lines)
     │   └── syncTriggers.ts (60 lines)
     ├── cloud/
-    │   └── useCloudSession.ts (497 lines)
+    │   └── useCloudSession.ts (503 lines)
     └── styles/
         ├── clay.css (73 lines)
         ├── tokens.css (104 lines)
@@ -174,7 +176,8 @@ packages/
 - **`CloudAccountCard` device rows** (Phase 4D5/4D6/4D9): the ready section leads with the server's per-device rows (label + `Added {date}` + last-seen fact + `This device` chip + per-row two-step revoke; current device routes to the 4D3 deauthorize flow), falls back to the bare count + short id on a v1 function, and closes with a **collapsed revoked-device history** (`Revoked devices ({count})` → read-only label + `Revoked {date}` lines, server-capped at 10) that renders only when the server reported revoked devices.
 - **`supabase/authClient`** (Phase 4D2): Supabase Auth REST client without supabase-js — `signInWithPassword`, `refreshSession`, `getValidSession` (pre-emptive refresh within a 60 s TTL margin; 4xx refresh rejections clear the session while transient network/5xx failures deliberately keep it), `signOut` (best-effort global logout, never blocks local sign-out); `AuthSessionStore` port with `InMemory` + `KeyValue` implementations and defensive rehydration.
 - **`supabase/deviceFlow`** (Phase 4D2): one idempotent state machine over the 4C primitives — `runDeviceFlow` (status → verified / enroll+verify with one-time codes / recovery_required with reasons) and `submitDeviceRecovery`; every outcome is data, server codes pass through verbatim.
-- **`sync/syncService`** (Phase 4D2): `syncNow` — push all local envelopes (idempotent by primary key) then pull remote rows and merge only genuinely new ones into the local `EventLog`, with honest pushed/duplicates/pulled/merged accounting.
+- **`sync/syncService`** (Phase 4D2/4D10): `syncNow` — push all local envelopes (idempotent by primary key) then pull remote rows and merge only genuinely new ones into the local `EventLog`, with honest pushed/duplicates/pulled/merged accounting; pulls are cursor-based when a `PullCursorPort` is provided (server-clock `synced_at` basis, 10-minute replay window, forward-only advance, full-pull fallback on a missing/garbage cursor) and a deliberate full pull otherwise.
+- **`sync/pullCursorStore`** (Phase 4D10): `KeyValuePullCursorStore` — IndexedDB persistence of the per-user pull cursor (`hfos.pull_cursor.<userId>`), corrupted values load as null (full pull), intentionally kept across sign-outs like the device key record.
 - **`sync/syncTriggers`** (Phase 4D4): the opportunistic auto-sync policy — `shouldSync({ ready, busy })` + `markStarted()`, gated on readiness and in-flight rounds, rate-limited to one round per `MIN_AUTO_SYNC_INTERVAL_MS` (30 s); pure and dependency-injected (fake clock in tests).
 - **`cloud/useCloudSession`** (Phase 4D2/4D3/4D4): thin React glue — stages (checking/signed_out/device_flow/recovery/ready), mount-time restore + device-flow convergence, sign-in/recovery/sign-out actions, `sync()` with one re-verify retry when a 12 h device session lapsed, one **auto-sync per readiness transition** (re-arms only after `signed_out`) plus **opportunistic rounds on `visibilitychange`/`online` through the trigger policy**, a once-per-readiness-epoch **device-info refresh** (local enrolled device id + server `active_devices` count), `lastSyncAt` stamping on every completed round, and `deauthorize()` (server revoke → local key clear → sign-out; a failed revoke never pretends success); the app stays fully usable signed out.
 - **`supabase/env` + `supabase/probe`**: env-driven config plumbing (`readSupabaseEnv`, degrades to typed `missing`/`invalid_url`, never throws) and injected-I/O liveness probe (`probeCloudConnection`); no supabase-js dependency yet (lands with auth in 4B/4C).
@@ -186,7 +189,15 @@ packages/
 
 ---
 
-## 3. Files Changed in this Task (Phase 4D9 — revoked-device history in the account card)
+## 3. Files Changed in this Task (Phase 4D10 — cursor-based pull)
+- `apps/web/src/supabase/syncTransport.ts` (317 lines, additive): `pullEvents` gains `sinceSyncedIso` (strict `synced_at=gt.` filter + `synced_at.asc,idempotency_key.asc` ordering while set) and `PullResult.max_synced_at` (newest server clock value seen, defensively parsed); the `sinceIso` path and default ordering are untouched.
+- `apps/web/src/sync/syncService.ts` (99 → 155 lines): `PullCursorPort` + `PULL_OVERLAP_MS` (10 min) + `cursorSinceIso`; `syncNow` loads the cursor, pulls incrementally (full pull when absent/garbage), and advances the cursor only on a successful pull and only forward — the idempotent merge makes the replay free, preserving the old full-pull safety.
+- `apps/web/src/sync/pullCursorStore.ts` (new, 42 lines: `KeyValuePullCursorStore` over the IndexedDB kv store, per-user namespace, corrupted value → null, kept across sign-outs like the device key record).
+- `apps/web/src/cloud/useCloudSession.ts` (+6 lines: `openStores()` builds the cursor store; both `syncNow` calls pass it — no state, no UI, no i18n).
+- `apps/web/src/__tests__/syncCursor4D10.test.ts` (new, 13 tests).
+- `docs/REPORT_PHASE4D10.md`, `docs/STATE.md`.
+
+### Previous: Files Changed in this Task (Phase 4D9 — revoked-device history in the account card)
 - `supabase/functions/device-auth/index.ts` (282 lines, additive contract extension): `status` now also answers `revoked_devices` — `id, label, created_at, revoked_at` for the user's revoked rows, newest first, capped at 10 — through the exact `activeDeviceRows` degrade pattern (any query failure → field omitted, status can never fail because of history); the 4D5 `devices` shape is untouched and old clients ignore the extra field.
 - `apps/web/src/supabase/deviceAuthClient.ts` (+41 lines: `RevokedDeviceRow`; `DeviceStatus.revoked_devices: rows | null`; `parseRevokedRows` mirroring `parseDeviceRows` — non-array → null, malformed entries dropped individually, non-string timestamps → null).
 - `apps/web/src/cloud/useCloudSession.ts` (+17 lines: `revokedRows` in state, mapped from the readiness-epoch status probe, cleared in all four reset paths — the exact lifecycle `deviceRows` already has).
@@ -343,7 +354,7 @@ packages/
 
 ## 4. Test Counts per Package
 
-Total: **41 test files, 376 tests passing**.
+Total: **42 test files, 389 tests passing**.
 - `packages/engine-core`: 71 tests (engine-core: 59, engine-honesty-e1a: 9, engine-guard: 1, numeric-literals: 1, smoke: 1)
 - `packages/contracts`: 21 tests
 - `packages/config`: 16 tests
@@ -351,7 +362,7 @@ Total: **41 test files, 376 tests passing**.
 - `packages/library`: 9 tests (library: 7, smoke: 2)
 - `packages/sim`: 4 tests (simulation: 1, smoke: 3)
 - `packages/ports`: 1 test
-- `apps/web`: 232 tests (deviceAuthClient: 25, sessionRunnerHardening: 12, authClient: 14, deviceFlow: 9, deviceKeys: 10, historyService: 9, workoutRunnerScreen: 10, planService: 9, syncTransport: 7, syncService: 6, supabaseProbe: 5, cloudWiring: 5, cloudPhase4D3: 7, cloudPhase4D4: 16, cloudPhase4D5: 21, cloudPhase4D6: 13, cloudPhase4D9: 10, sessionRunner: 6, storage: 4, appearance: 12, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
+- `apps/web`: 245 tests (deviceAuthClient: 25, sessionRunnerHardening: 12, authClient: 14, deviceFlow: 9, deviceKeys: 10, historyService: 9, workoutRunnerScreen: 10, planService: 9, syncTransport: 7, syncService: 6, syncCursor4D10: 13, supabaseProbe: 5, cloudWiring: 5, cloudPhase4D3: 7, cloudPhase4D4: 16, cloudPhase4D5: 21, cloudPhase4D6: 13, cloudPhase4D9: 10, sessionRunner: 6, storage: 4, appearance: 12, supabaseEnv: 4, rtl: 7, i18nArabicCoverage: 4, historyWiring: 3, supabaseWiring: 3, i18n-compliance: 1)
 
 ---
 
@@ -373,9 +384,10 @@ Total: **41 test files, 376 tests passing**.
 - **Done (Phase 4D7)**: per-skin motion personality — JS owns a per-skin `durationScale` (brutal 0.7 stamps … aurora 1.2 drifts, clay baseline 1 byte-identical) applied to all six motion tokens (three new: enter/draw/stagger), CSS owns the character (per-skin `--motion-timing` curves; signature `glassEnter` breath and `brutalStamp` no-fade enter via `animation-name` overrides), and a pre-existing honesty gap closed: the hardcoded 220/900/50ms animation durations now consume tokens, so the in-app `motion: 'reduced'` setting truly stops everything. No component branches on the style; no new UI or i18n; pure client phase — no owner action. 10 new tests (total 361), bundle 142.10/300 KB.
 - **Done (Phase 4D8)**: motion personality hint in the style picker — every skin tile in the Appearance Lab now captions its motion character (`Motion: {character}` / `الحركة: {character}`, e.g. "Unhurried glide" / "انزلاق متأنٍ") resolved from the new per-skin `labelKey` through 10 new keys per dict; manual placeholder replacement per the 4D6 `{date}` pattern; no persistence, no branching on the style, no in-tile animation (the app already repaints WYSIWYG). Pure client phase — no owner action. 5 new tests (total 366), bundle 142.43/300 KB.
 - **Done (Phase 4D9)**: revoked-device history — the account card closes its device section with a collapsed, read-only audit trail (`Revoked devices ({count})` → label + `Revoked {date}` lines, newest first, server-capped at 10); the server's `status` answers an additive `revoked_devices` array through the exact 4D5 degrade pattern (query failure → field omitted, status never fails because of history), and the client parses it defensively (absent/malformed → null → no section). Until the pending function redeploy lands, the section simply stays hidden — everything else is identical. No un-revoke: regaining access remains a recovery-code flow. 2 new i18n keys per dict (dicts 362/362). 10 new tests (total 376), bundle 142.67/300 KB.
-- **Deployment note**: nothing to deploy server-side for 4C/4D2/4D3 beyond two owner actions — (1) apply `supabase/migrations/20261104000000_p4d3_cleanup_expired_device_auth.sql` in the SQL editor (optionally schedule it with the included pg_cron snippet), and (2) provide a test user for the live E2E rehearsal (`npm run e2e:live`, see `docs/REPORT_LIVE_E2E.md`): a dashboard-created user with Auto Confirm ✔ (option A, full 26 stations) or temporarily enabling anonymous sign-ins (option B, 23 stations). The project correctly ships with open signups and the anonymous provider disabled (re-confirmed live: `422 signup_disabled`, `422 anonymous_provider_disabled`). 4D6 adds a third owner action: redeploy `device-auth` again (the honest-404 revoke + CORS allow-list source) — safe either way, the client tolerates the old bare-ok answers; optional hardening: set `DEVICE_AUTH_ALLOWED_ORIGINS` to the production origin in the function's secrets. 4D7 adds nothing server-side (pure client: CSS + one JS map). 4D8 likewise adds nothing server-side (pure client: one UI field + i18n keys). 4D9's only server-side piece (the `revoked_devices` status extension) rides that same still-pending redeploy — one action ships 4D6 + 4D9 together; until then the history section stays hidden by design.
+- **Done (Phase 4D10)**: cursor-based pull — `syncNow` no longer downloads the user's whole `session_events` mirror every round: the pull cursor is the newest server-assigned `synced_at` (server clock — skewed device clocks cannot skip rows), the next pull replays only a 10-minute overlap window (idempotent merge makes the replay free), the cursor advances only on a successful pull and only forward, and a missing/garbage cursor honestly falls back to the full pull; `KeyValuePullCursorStore` persists it per user in IndexedDB (kept across sign-outs like the device key record). Additive transport change (`sinceSyncedIso` + `PullResult.max_synced_at`); no migration, no function change, no UI change. 13 new tests (total 389), bundle 143.03/300 KB.
+- **Deployment note**: nothing to deploy server-side for 4C/4D2/4D3 beyond two owner actions — (1) apply `supabase/migrations/20261104000000_p4d3_cleanup_expired_device_auth.sql` in the SQL editor (optionally schedule it with the included pg_cron snippet), and (2) provide a test user for the live E2E rehearsal (`npm run e2e:live`, see `docs/REPORT_LIVE_E2E.md`): a dashboard-created user with Auto Confirm ✔ (option A, full 26 stations) or temporarily enabling anonymous sign-ins (option B, 23 stations). The project correctly ships with open signups and the anonymous provider disabled (re-confirmed live: `422 signup_disabled`, `422 anonymous_provider_disabled`). 4D6 adds a third owner action: redeploy `device-auth` again (the honest-404 revoke + CORS allow-list source) — safe either way, the client tolerates the old bare-ok answers; optional hardening: set `DEVICE_AUTH_ALLOWED_ORIGINS` to the production origin in the function's secrets. 4D7 adds nothing server-side (pure client: CSS + one JS map). 4D8 likewise adds nothing server-side (pure client: one UI field + i18n keys). 4D9's only server-side piece (the `revoked_devices` status extension) rides that same still-pending redeploy — one action ships 4D6 + 4D9 together; until then the history section stays hidden by design. 4D10 adds nothing server-side (pure client: a transport filter + an IndexedDB key).
 - **Push note**: `c03acb5` (e2e tooling) + `c8d5e97` (Phase 4D3) were pushed to `origin/main` and CI finished green (run for `c8d5e97`, all steps success, ~38 s — the repo's normal duration).
-- **Possible next (4D10 candidates)**: a revoke-confirmation second factor (product decision — the verified device session plus the 4D6 two-step confirm already gate the action); cursor-based pull only if the event log ever grows (currently a deliberate full pull); pg_cron scheduling of the expired-session cleanup (still blocked on the owner confirming pg_cron availability); the revoked-history section is delivered by 4D9 and only needs the pending `device-auth` redeploy to become visible.
+- **Possible next (4D11 candidates)**: a revoke-confirmation second factor (product decision — the verified device session plus the 4D6 two-step confirm already gate the action); pg_cron scheduling of the expired-session cleanup (still blocked on the owner confirming pg_cron availability); the live E2E rehearsal (blocked on a dashboard-created test user with Auto Confirm); the revoked-history section is delivered by 4D9 and the cursor pull by 4D10 — both pure client, only the `device-auth` redeploy remains owner-side.
 
 ---
 
