@@ -13,6 +13,12 @@
 //   3. classic signup                     -> works when open signups are enabled
 // With an anonymous user the "fresh sign-in" per-session-binding step is skipped.
 //
+// Station counts: 29 with an email+password user (one optional skip for
+// anonymous users: 26). Three of them are DEPLOY DIFFERENTIALS — they stay
+// red until the pending device-auth redeploy lands, then prove 4D5 (device
+// rows), 4D6 (honest 404 revoke) and 4D9 (revoked_devices history) live in
+// one run. See docs/REPORT_LIVE_E2E.md.
+//
 // Usage (from the repo root):  npm run e2e:live
 //                         or:  node scripts/e2e_device_auth.mjs
 // Optional: E2E_EMAIL=... E2E_PASSWORD=... node scripts/e2e_device_auth.mjs
@@ -226,6 +232,16 @@ record('user session', userId.length > 0, `${origin}; session_id ${mask(String(c
 const st0 = await deviceAuth('status', token);
 expectEq('status(initial)', `${st0.status}:${st0.data?.active_devices}:${st0.data?.session_verified}`, '200:0:false');
 
+// Deploy differential (4D5): the live function only carries the per-device
+// `devices` rows when the 4D5 source is deployed AND the
+// 20261105000000_p4d5_device_last_seen.sql migration is applied. Red here
+// means: apply the migration, redeploy device-auth, re-run.
+record('status(initial) carries device rows (4D5 live)',
+  Array.isArray(st0.data?.devices),
+  Array.isArray(st0.data?.devices)
+    ? `devices field present, ${st0.data.devices.length} row(s)`
+    : 'devices field absent — the live function predates 4D5 or the 20261105000000_p4d5_device_last_seen.sql migration is not applied; apply the migration, redeploy device-auth, re-run');
+
 // ── 3. RLS gates BEFORE device verification ────────────────────────────────
 
 const env0 = {
@@ -377,11 +393,29 @@ record('pull(after recovery re-verify) shows the row',
 
 // ── 10. revoke → everything closes again ───────────────────────────────────
 
+// Deploy differential (4D6): revoking an id that is not a live device of
+// this user must answer an honest 404, not the pre-4D6 fake bare-ok over a
+// zero-row update. The caller is still verified (device C) here, so the
+// 404 path is reachable. Red here means the live function predates 4D6.
+const rvk404 = await deviceAuth('revoke', activeToken, { device_id: crypto.randomUUID() });
+expectErr('revoke(unknown id) answers honest 404 (4D6 live)', rvk404, 404, 'unknown_or_revoked_device');
+
 const rvk = await deviceAuth('revoke', activeToken, { device_id: deviceIdC });
 expectEq('revoke(C)', rvk.status, 200);
 
 const st1 = await deviceAuth('status', activeToken);
 expectEq('status(after revoke)', `${st1.status}:${st1.data?.active_devices}:${st1.data?.session_verified}`, '200:0:false');
+
+// Deploy differential (4D9): the collapsed revoked-history section of the
+// account card is fed by the `revoked_devices` status extension — present
+// only once the 4D9 source is live (the 4D6 redeploy ships it). Red here
+// means the live function predates 4D9.
+const rvHist = Array.isArray(st1.data?.revoked_devices) ? st1.data.revoked_devices : null;
+record('status(after revoke) carries revoked history (4D9 live)',
+  rvHist !== null && rvHist.some((r) => r?.id === deviceIdC && typeof r?.revoked_at === 'string'),
+  rvHist !== null
+    ? `revoked_devices present, ${rvHist.length} row(s), device C ${rvHist.some((r) => r?.id === deviceIdC) ? 'included' : 'MISSING'} with a revoked_at stamp`
+    : 'revoked_devices absent — the live function predates 4D9; redeploy device-auth (the same redeploy ships 4D6)');
 
 const pull6 = await restPullEvents(activeToken, userId);
 record('pull(after revoke) blocked again',

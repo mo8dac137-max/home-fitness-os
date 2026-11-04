@@ -29,15 +29,22 @@ requests the app will make on a phone.
   is signed with ECDSA P-256 / SHA-256 into unpadded base64url, requests carry
   `apikey` + `Bearer` headers, and PostgREST inserts use
   `Prefer: resolution=ignore-duplicates,return=representation`.
+- Post-4D10 hardening: three **deploy-differential stations** (◆ in §3) were
+  added so the same run also proves the pending `device-auth` redeploy — the
+  4D5 device rows, the 4D6 honest-404 revoke and the 4D9 `revoked_devices`
+  history, live.
 
 ## 3. What the Rehearsal Proves (station ledger)
-23 stations with an anonymous user (one SKIPPED) / 26 with a
-dashboard-created email+password user:
+26 stations with an anonymous user (one SKIPPED) / 29 with a
+dashboard-created email+password user. Three of them (marked ◆) are
+**deploy differentials**: they stay red until the pending `device-auth`
+redeploy lands, then prove the 4D5 migration + the 4D6/4D9 source live in
+the same run:
 
 | # | Section | Stations | Expected contract |
 |---|---------|----------|-------------------|
 | 1 | User acquisition | password grant → anonymous → signup (first that works) | JWT carrying `sub` + `session_id` |
-| 2 | Pre-enroll status | `status(initial)` | `200:0:false` |
+| 2 | Pre-enroll status | `status(initial)`; ◆ `devices` rows present | `200:0:false`; ◆ array (4D5 migration + source live) |
 | 3 | RLS before verification | insert denied; pull empty | `403 42501`; `200 / []` |
 | 4 | Enroll | `enroll(A)`; second device refused | 200 + `device_id` + 8 recovery codes; `409 device_exists_use_recover` |
 | 5 | Verify | challenge → sign → verify | 200 `ok:true` + 12 h `expires_at` |
@@ -45,7 +52,12 @@ dashboard-created email+password user:
 | 7 | Sync after verification | insert accepted; pull shows the row; duplicate idempotent | 201 returning the key; 200/1 row; 201/0 new, table still 1 row |
 | 8 | Per-session binding | fresh sign-in NOT verified; pull blocked; re-verify; pull shows row | 4 stations (SKIPPED as one for anonymous users) |
 | 9 | Recovery | bad code; code[0] + new key; code reuse; challenge on revoked device; verify(C); pull | `403 bad_recovery_code`; 200 + 8 fresh codes; `403`; `403 unknown_or_revoked_device`; 200 ok; 200/1 row |
-| 10 | Revoke | revoke(C); status; pull | 200; `200:0:false`; `200 / []` |
+| 10 | Revoke | ◆ revoke(unknown id); revoke(C); status; ◆ revoked history; pull | ◆ `404 unknown_or_revoked_device` (4D6); 200; `200:0:false`; ◆ `revoked_devices` contains C (4D9); `200 / []` |
+
+The differentials are strict on purpose: before the redeploy the run ends
+`26/29` (email user) with exactly the three ◆ stations red — that is the
+expected pre-deploy state, each failure naming its fix. After the redeploy
+the same command must end `29/29`; that is the green signal.
 
 ## 4. Live Evidence Banked So Far
 - `device-auth` Edge Function live since Phase 4C: `401 {"error":"missing_token"}`
@@ -72,8 +84,8 @@ provider **disabled**. That is the right production posture and this task does
 not ask to loosen it permanently. Any one of:
 - **(A, recommended)** Dashboard → Authentication → Users → Add user with
   **Auto Confirm ✔**, then run with `E2E_EMAIL`/`E2E_PASSWORD` → the full
-  26 stations, including the fresh-sign-in per-session-binding section.
-- **(B)** temporarily enable *Anonymous sign-ins* → 23 stations (the binding
+  29 stations, including the fresh-sign-in per-session-binding section.
+- **(B)** temporarily enable *Anonymous sign-ins* → 26 stations (the binding
   section is skipped — an anonymous user cannot re-authenticate), then disable
   it again afterwards.
 
@@ -90,8 +102,11 @@ E2E_EMAIL=you@example.com E2E_PASSWORD='…' npm run e2e:live
 npm run e2e:live
 ```
 
-Exit code 0 and `== Summary: 26/26 steps passed ==` (or 23/23) is the green
-signal for the live deployment.
+Exit code 0 and `== Summary: 29/29 steps passed ==` (or 26/26) is the green
+signal for the live deployment. Before the pending `device-auth` redeploy the
+same command honestly ends `26/29` (or `23/26`) with only the three ◆ deploy
+differentials red — run it once before and once after the redeploy and the
+pair of summaries is the before/after proof.
 
 ## 7. Honest Non-Goals
 - The rehearsal is wire-level; it does not click through the React UI
