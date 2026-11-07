@@ -189,7 +189,11 @@ packages/
 
 ---
 
-## 3. Files Changed in this Task (Phase 4D10 — cursor-based pull)
+## 3. Files Changed in this Task (CI workflow hardening)
+- `.github/workflows/ci.yml` (29 → 37 lines, additive): top-level `permissions: contents: read` (least-privilege workflow token — the gates never needed write access); `concurrency: ci-${{ github.ref }}` with `cancel-in-progress` (a new push cancels the superseded run of the same branch); a `workflow_dispatch` trigger (on-demand manual runs); the Performance Budget step now writes the bundle report into the run's `$GITHUB_STEP_SUMMARY` via `set -o pipefail && ... | tee` (same gate, same exit code, report visible in the Actions summary UI). No app/package source touched — the gate suite is identical. Verified locally: lint ✓, typecheck ✓, 42 files / 389 tests ✓, build ✓, bundle 142.95/300 KB ✓. See `docs/REPORT_CI_HARDENING.md`.
+- `docs/REPORT_CI_HARDENING.md` (new), `docs/STATE.md`.
+
+### Previous: Files Changed in this Task (Phase 4D10 — cursor-based pull)
 - `apps/web/src/supabase/syncTransport.ts` (317 lines, additive): `pullEvents` gains `sinceSyncedIso` (strict `synced_at=gt.` filter + `synced_at.asc,idempotency_key.asc` ordering while set) and `PullResult.max_synced_at` (newest server clock value seen, defensively parsed); the `sinceIso` path and default ordering are untouched.
 - `apps/web/src/sync/syncService.ts` (99 → 155 lines): `PullCursorPort` + `PULL_OVERLAP_MS` (10 min) + `cursorSinceIso`; `syncNow` loads the cursor, pulls incrementally (full pull when absent/garbage), and advances the cursor only on a successful pull and only forward — the idempotent merge makes the replay free, preserving the old full-pull safety.
 - `apps/web/src/sync/pullCursorStore.ts` (new, 42 lines: `KeyValuePullCursorStore` over the IndexedDB kv store, per-user namespace, corrupted value → null, kept across sign-outs like the device key record).

@@ -3,6 +3,16 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
+
+# Least privilege: the workflow token can only read the repository.
+permissions:
+  contents: read
+
+# One run per ref: a new push to the same branch cancels its superseded run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   quality:
@@ -25,4 +35,4 @@ jobs:
       - name: Build
         run: npm run build
       - name: Performance Budget Check
-        run: npm run check:bundle
+        run: set -o pipefail && npm run check:bundle | tee "$GITHUB_STEP_SUMMARY"
